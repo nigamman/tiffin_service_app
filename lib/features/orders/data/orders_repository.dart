@@ -1,6 +1,5 @@
-import 'dart:convert';
-import '../../../core/constants/api_constants.dart';
-import '../../../core/network/api_client.dart';
+import '../../../core/services/firebase_service.dart';
+import '../../auth/data/auth_repository.dart';
 
 class OrderModel {
   final String id;
@@ -40,7 +39,7 @@ class OrderModel {
   factory OrderModel.fromMap(Map<String, dynamic> map) {
     final skippedRaw = map['skippedDates'] as List? ?? [];
     return OrderModel(
-      id: map['_id'] ?? map['id'] ?? '',
+      id: map['id'] ?? '',
       frequency: map['frequency'] ?? 'one-time',
       quantity: map['quantity'] ?? 1,
       startDate: DateTime.parse(map['startDate']),
@@ -53,7 +52,7 @@ class OrderModel {
       finalAmount: (map['finalAmount'] as num?)?.toDouble() ?? 80.0,
       paymentStatus: map['paymentStatus'] ?? 'pending',
       orderStatus: map['orderStatus'] ?? 'confirmed',
-      skippedDates: skippedRaw.map((d) => DateTime.parse(d)).toList(),
+      skippedDates: skippedRaw.map((d) => DateTime.parse(d as String)).toList(),
       createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
     );
   }
@@ -80,171 +79,54 @@ class OrderModel {
 }
 
 class OrdersRepository {
-  final ApiClient _apiClient = ApiClient();
-
-  // Storage for mock orders
-  static List<OrderModel> _mockOrders = [];
+  final FirebaseService _db = FirebaseService.instance;
+  final AuthRepository _authRepository = AuthRepository();
 
   Future<List<OrderModel>> getUserOrders() async {
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Pre-seed some mock orders if list is empty
-      if (_mockOrders.isEmpty) {
-        _mockOrders = [
-          // Active weekly plan
-          OrderModel(
-            id: 'mock_ord_901',
-            frequency: 'weekly',
-            quantity: 1,
-            startDate: DateTime.now().subtract(const Duration(days: 1)),
-            deliverySlot: 'lunch',
-            contactPhone: '9876543210',
-            pricePerMeal: 80.0,
-            mealsCount: 7,
-            totalAmount: 560.0,
-            discountAmount: 50.0,
-            finalAmount: 510.0,
-            paymentStatus: 'paid',
-            orderStatus: 'confirmed',
-            skippedDates: [],
-            createdAt: DateTime.now().subtract(const Duration(days: 2)),
-          ),
-          // Past one-time plan (completed)
-          OrderModel(
-            id: 'mock_ord_902',
-            frequency: 'one-time',
-            quantity: 2,
-            startDate: DateTime.now().subtract(const Duration(days: 5)),
-            deliverySlot: 'dinner',
-            contactPhone: '9876543210',
-            pricePerMeal: 80.0,
-            mealsCount: 1,
-            totalAmount: 160.0,
-            discountAmount: 0.0,
-            finalAmount: 160.0,
-            paymentStatus: 'paid',
-            orderStatus: 'confirmed',
-            skippedDates: [],
-            createdAt: DateTime.now().subtract(const Duration(days: 5)),
-          ),
-        ];
-      }
-      
-      return List.from(_mockOrders);
-    } else {
-      final response = await _apiClient.get('/orders/my-orders');
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List ordersList = data['orders'] ?? [];
-        return ordersList.map((o) => OrderModel.fromMap(o)).toList();
-      } else {
-        throw Exception('Failed to fetch user orders list');
-      }
-    }
+    final user = await _authRepository.getCachedUser();
+    if (user == null) return [];
+
+    // Query Firestore orders collection where user == userId and paymentStatus == paid
+    final allOrders = await _db.collectionGetWhere('orders', 'user', user.id);
+    final paidOrders = allOrders.where((o) => o['paymentStatus'] == 'paid').toList();
+    
+    return paidOrders.map((o) => OrderModel.fromMap(o)).toList();
   }
 
   Future<OrderModel> skipDate(String orderId, DateTime date) async {
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 600));
-      
-      final index = _mockOrders.indexWhere((o) => o.id == orderId);
-      if (index != -1) {
-        final order = _mockOrders[index];
-        final cleanDate = DateTime(date.year, date.month, date.day);
-        
-        if (order.skippedDates.contains(cleanDate)) {
-          throw Exception('This date is already skipped');
-        }
-        
-        final updatedSkipped = List<DateTime>.from(order.skippedDates)..add(cleanDate);
-        final updatedOrder = OrderModel(
-          id: order.id,
-          frequency: order.frequency,
-          quantity: order.quantity,
-          startDate: order.startDate,
-          deliverySlot: order.deliverySlot,
-          contactPhone: order.contactPhone,
-          pricePerMeal: order.pricePerMeal,
-          mealsCount: order.mealsCount,
-          totalAmount: order.totalAmount,
-          discountAmount: order.discountAmount,
-          finalAmount: order.finalAmount,
-          paymentStatus: order.paymentStatus,
-          orderStatus: order.orderStatus,
-          skippedDates: updatedSkipped,
-          createdAt: order.createdAt,
-        );
-        
-        _mockOrders[index] = updatedOrder;
-        return updatedOrder;
-      }
-      throw Exception('Order not found');
-    } else {
-      final response = await _apiClient.post('/orders/skip', {
-        'orderId': orderId,
-        'date': date.toIso8601String(),
-      });
+    final order = await _db.docGet('orders', orderId);
+    if (order == null) throw Exception('Order not found');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return OrderModel.fromMap(data['order']);
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to skip delivery slot');
-      }
+    final List skippedRaw = order['skippedDates'] as List? ?? [];
+    final List<String> skippedStrings = List<String>.from(skippedRaw);
+    
+    final cleanDateString = DateTime(date.year, date.month, date.day).toIso8601String();
+    
+    if (skippedStrings.contains(cleanDateString)) {
+      throw Exception('This date is already skipped');
     }
+
+    skippedStrings.add(cleanDateString);
+
+    // Update orders document in Firestore
+    await _db.docUpdate('orders', orderId, {
+      'skippedDates': skippedStrings,
+    });
+
+    final updatedDoc = await _db.docGet('orders', orderId);
+    return OrderModel.fromMap(updatedDoc!);
   }
 
-  // Admin orders utility (called by admin dashboard)
+  // Admin access routines
   Future<List<OrderModel>> adminGetAllOrders() async {
-    if (ApiConstants.useMockApi) {
-      // Return local orders
-      return getUserOrders();
-    } else {
-      final response = await _apiClient.get('/admin/orders');
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List ordersList = data['orders'] ?? [];
-        return ordersList.map((o) => OrderModel.fromMap(o)).toList();
-      } else {
-        throw Exception('Failed to retrieve system order records');
-      }
-    }
+    final allOrders = await _db.collectionGet('orders');
+    final paidOrders = allOrders.where((o) => o['paymentStatus'] == 'paid').toList();
+    return paidOrders.map((o) => OrderModel.fromMap(o)).toList();
   }
 
-  // Admin status update utility
   Future<void> adminUpdateStatus(String orderId, String status) async {
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      final idx = _mockOrders.indexWhere((o) => o.id == orderId);
-      if (idx != -1) {
-        final o = _mockOrders[idx];
-        _mockOrders[idx] = OrderModel(
-          id: o.id,
-          frequency: o.frequency,
-          quantity: o.quantity,
-          startDate: o.startDate,
-          deliverySlot: o.deliverySlot,
-          contactPhone: o.contactPhone,
-          pricePerMeal: o.pricePerMeal,
-          mealsCount: o.mealsCount,
-          totalAmount: o.totalAmount,
-          discountAmount: o.discountAmount,
-          finalAmount: o.finalAmount,
-          paymentStatus: o.paymentStatus,
-          orderStatus: status == 'cancelled' ? 'cancelled' : 'confirmed',
-          skippedDates: o.skippedDates,
-          createdAt: o.createdAt,
-        );
-      }
-    } else {
-      final response = await _apiClient.put('/admin/orders/$orderId/status', {
-        'orderStatus': status,
-      });
-      if (response.statusCode != 200) {
-        throw Exception('Failed to update order status');
-      }
-    }
+    await _db.docUpdate('orders', orderId, {
+      'orderStatus': status,
+    });
   }
 }

@@ -1,6 +1,5 @@
-import 'dart:convert';
-import '../../../core/constants/api_constants.dart';
-import '../../../core/network/api_client.dart';
+import '../../../core/services/firebase_service.dart';
+import '../../auth/data/auth_repository.dart';
 
 class CouponResult {
   final bool isValid;
@@ -14,15 +13,6 @@ class CouponResult {
     required this.discountAmount,
     required this.message,
   });
-
-  factory CouponResult.fromMap(Map<String, dynamic> map) {
-    return CouponResult(
-      isValid: map['isValid'] ?? false,
-      code: map['code'] ?? '',
-      discountAmount: (map['discountAmount'] as num?)?.toDouble() ?? 0.0,
-      message: map['message'] ?? '',
-    );
-  }
 }
 
 class OrderCreateResult {
@@ -37,89 +27,60 @@ class OrderCreateResult {
     required this.amount,
     required this.keyId,
   });
-
-  factory OrderCreateResult.fromMap(Map<String, dynamic> map) {
-    return OrderCreateResult(
-      orderId: map['orderId'] ?? '',
-      razorpayOrderId: map['razorpayOrderId'] ?? '',
-      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
-      keyId: map['keyId'] ?? '',
-    );
-  }
 }
 
 class BookingRepository {
-  final ApiClient _apiClient = ApiClient();
+  final FirebaseService _db = FirebaseService.instance;
+  final AuthRepository _authRepository = AuthRepository();
 
   Future<CouponResult> validateCoupon(String code, double orderValue) async {
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 300));
-      
-      final cleanCode = code.trim().toUpperCase();
-      double discount = 0.0;
-      bool isValid = false;
-      String msg = '';
+    final cleanCode = code.trim().toUpperCase();
+    
+    // 1. Query Firestore for coupon document
+    final coupons = await _db.collectionGetWhere('coupons', 'code', cleanCode);
+    
+    if (coupons.isEmpty) {
+      return CouponResult(isValid: false, code: cleanCode, discountAmount: 0, message: 'Invalid coupon code');
+    }
 
-      if (cleanCode == 'FIRSTTIFFIN') {
-        if (orderValue >= 80.0) {
-          discount = 30.0;
-          isValid = true;
-          msg = 'FIRSTTIFFIN applied! ₹30 OFF';
-        } else {
-          msg = 'Code requires min order of ₹80';
-        }
-      } else if (cleanCode == 'KANPUR50') {
-        if (orderValue >= 200.0) {
-          discount = 50.0;
-          isValid = true;
-          msg = 'KANPUR50 applied! ₹50 OFF';
-        } else {
-          msg = 'Code requires min order of ₹200';
-        }
-      } else if (cleanCode == 'WELCOME20') {
-        if (orderValue >= 80.0) {
-          discount = (orderValue * 0.20).clamp(0.0, 100.0);
-          isValid = true;
-          msg = 'WELCOME20 applied! 20% OFF';
-        } else {
-          msg = 'Code requires min order of ₹80';
-        }
-      } else if (cleanCode == 'WEEKLY50') {
-        if (orderValue >= 500.0) {
-          discount = 50.0;
-          isValid = true;
-          msg = 'WEEKLY50 applied! ₹50 OFF';
-        } else {
-          msg = 'Code requires min order of ₹500';
-        }
-      } else {
-        msg = 'Invalid coupon code';
-      }
+    final coupon = coupons.first;
+    final isActive = coupon['active'] ?? false;
+    final minOrder = (coupon['minOrderValue'] as num?)?.toDouble() ?? 0.0;
+    final discountVal = (coupon['discountValue'] as num?)?.toDouble() ?? 0.0;
+    final discType = coupon['discountType'] ?? 'fixed';
 
+    if (!isActive) {
+      return CouponResult(isValid: false, code: cleanCode, discountAmount: 0, message: 'This coupon is inactive');
+    }
+
+    if (orderValue < minOrder) {
       return CouponResult(
-        isValid: isValid,
+        isValid: false,
         code: cleanCode,
-        discountAmount: discount,
-        message: msg,
+        discountAmount: 0,
+        message: 'Requires min order value of ₹${minOrder.toStringAsFixed(0)}',
       );
-    } else {
-      try {
-        final response = await _apiClient.post('/coupons/validate', {
-          'code': code,
-          'orderValue': orderValue,
-        });
-        
-        final data = jsonDecode(response.body);
-        return CouponResult.fromMap(data);
-      } catch (e) {
-        return CouponResult(
-          isValid: false,
-          code: code,
-          discountAmount: 0.0,
-          message: 'Error validating coupon: $e',
-        );
+    }
+
+    double discount = 0.0;
+    if (discType == 'fixed') {
+      discount = discountVal;
+    } else if (discType == 'percent') {
+      discount = (orderValue * discountVal) / 100.0;
+      final maxDisc = (coupon['maxDiscount'] as num?)?.toDouble();
+      if (maxDisc != null && discount > maxDisc) {
+        discount = maxDisc;
       }
     }
+
+    discount = discount.clamp(0.0, orderValue);
+
+    return CouponResult(
+      isValid: true,
+      code: cleanCode,
+      discountAmount: discount,
+      message: 'Coupon code applied successfully!',
+    );
   }
 
   Future<OrderCreateResult> createOrder({
@@ -133,56 +94,73 @@ class BookingRepository {
     required String contactPhone,
     String? couponCode,
   }) async {
-    final payload = {
+    // Retrieve currently cached user to link document
+    final user = await _authRepository.getCachedUser();
+    final userId = user?.id ?? 'anonymous';
+
+    // 1. Calculate pricing details
+    double pricePerMeal = 80.0;
+    // Query active menu price
+    final menus = await _db.collectionGetWhere('menu', 'isActive', true);
+    if (menus.isNotEmpty) {
+      pricePerMeal = (menus.first['price'] as num).toDouble();
+    }
+
+    int mealsCount = 1;
+    if (frequency == 'weekly' || frequency == 'daily') mealsCount = 7;
+    if (frequency == 'monthly') mealsCount = 30;
+
+    final subtotal = pricePerMeal * mealsCount * quantity;
+    double discount = 0;
+
+    if (couponCode != null && couponCode.isNotEmpty) {
+      final couponCheck = await validateCoupon(couponCode, subtotal);
+      if (couponCheck.isValid) discount = couponCheck.discountAmount;
+    }
+
+    final finalAmount = subtotal - discount;
+    final rzpOrderId = 'order_rzp_mock_${DateTime.now().millisecondsSinceEpoch}';
+
+    // 2. Build order document structure for Firestore
+    final orderMap = {
+      'user': userId,
       'frequency': frequency,
       'quantity': quantity,
       'startDate': startDate,
       'deliverySlot': deliverySlot,
-      'deliveryAddress': {
-        'houseNo': houseNo,
-        'area': area,
-        'landmark': landmark,
-      },
       'contactPhone': contactPhone,
-      if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+      'pricePerMeal': pricePerMeal,
+      'mealsCount': mealsCount,
+      'totalAmount': subtotal,
+      'discountAmount': discount,
+      'finalAmount': finalAmount,
+      'couponCode': couponCode,
+      'paymentStatus': 'pending',
+      'orderStatus': 'confirmed',
+      'razorpayOrderId': rzpOrderId,
+      'skippedDates': <String>[],
+      'createdAt': DateTime.now().toIso8601String(),
     };
 
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 600));
-      
-      // Calculate mock final price locally
-      double pricePerMeal = 80.0;
-      int mealsCount = 1;
-      if (frequency == 'weekly' || frequency == 'daily') mealsCount = 7;
-      if (frequency == 'monthly') mealsCount = 30;
-      double total = pricePerMeal * mealsCount * quantity;
+    // 3. Write order document to Firestore `/orders`
+    final createdOrder = await _db.docAdd('orders', orderMap);
+    final orderId = createdOrder['id'] as String;
 
-      // Mock coupon subtract
-      double discount = 0;
-      if (couponCode != null) {
-        final res = await validateCoupon(couponCode, total);
-        if (res.isValid) discount = res.discountAmount;
-      }
-      
-      final finalAmount = total - discount;
+    // 4. Write payment log to Firestore `/payments`
+    await _db.docAdd('payments', {
+      'orderId': orderId,
+      'razorpayOrderId': rzpOrderId,
+      'amount': finalAmount,
+      'status': 'created',
+      'createdAt': DateTime.now().toIso8601String(),
+    });
 
-      return OrderCreateResult(
-        orderId: 'order_db_mock_${Math.randomString()}',
-        razorpayOrderId: 'order_rzp_mock_${Math.randomString()}',
-        amount: finalAmount,
-        keyId: 'rzp_test_mockkey1234',
-      );
-    } else {
-      final response = await _apiClient.post('/orders', payload);
-      
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        return OrderCreateResult.fromMap(data);
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to initiate order placement');
-      }
-    }
+    return OrderCreateResult(
+      orderId: orderId,
+      razorpayOrderId: rzpOrderId,
+      amount: finalAmount,
+      keyId: 'rzp_test_mockkey1234',
+    );
   }
 
   Future<bool> verifyPayment({
@@ -191,30 +169,40 @@ class BookingRepository {
     required String razorpayPaymentId,
     String? razorpaySignature,
   }) async {
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 600));
-      return true;
-    } else {
-      final response = await _apiClient.post('/orders/verify', {
-        'orderId': orderId,
-        'razorpayOrderId': razorpayOrderId,
-        'razorpayPaymentId': razorpayPaymentId,
-        'razorpaySignature': razorpaySignature ?? 'mock_sig_123',
-      });
+    // Verify signatures and confirm transactions in database documents
+    final order = await _db.docGet('orders', orderId);
+    if (order == null) throw Exception('Order not found');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['verified'] ?? false;
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to verify transaction signature');
+    // 1. Update order payment status
+    await _db.docUpdate('orders', orderId, {
+      'paymentStatus': 'paid',
+      'razorpayPaymentId': razorpayPaymentId,
+    });
+
+    // 2. Update payment document status
+    final payments = await _db.collectionGetWhere('payments', 'orderId', orderId);
+    if (payments.isNotEmpty) {
+      final payDocId = payments.first['id'] as String;
+      await _db.docUpdate('payments', payDocId, {
+        'status': 'captured',
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature ?? 'mock_sig_verified',
+      });
+    }
+
+    // 3. Increment usage count of applied coupon
+    final String? appliedCode = order['couponCode'];
+    if (appliedCode != null && appliedCode.isNotEmpty) {
+      final coupons = await _db.collectionGetWhere('coupons', 'code', appliedCode);
+      if (coupons.isNotEmpty) {
+        final couponId = coupons.first['id'] as String;
+        final currentCount = coupons.first['usageCount'] ?? 0;
+        await _db.docUpdate('coupons', couponId, {
+          'usageCount': currentCount + 1,
+        });
       }
     }
-  }
-}
 
-class Math {
-  static String randomString() {
-    return DateTime.now().millisecondsSinceEpoch.toString().substring(6);
+    return true;
   }
 }

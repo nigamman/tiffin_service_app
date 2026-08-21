@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../core/constants/api_constants.dart';
-import '../../../core/network/api_client.dart';
+import '../../../core/services/firebase_service.dart';
 
 class UserProfile {
   final String id;
@@ -35,59 +34,58 @@ class UserProfile {
   }
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
-    final addr = map['address'] as Map<String, dynamic>? ?? {};
     return UserProfile(
-      id: map['id'] ?? map['_id'] ?? '',
+      id: map['id'] ?? '',
       phone: map['phone'] ?? '',
       name: map['name'] ?? '',
-      houseNo: addr['houseNo'] ?? map['houseNo'] ?? '',
-      area: addr['area'] ?? map['area'] ?? '',
-      landmark: addr['landmark'] ?? map['landmark'] ?? '',
+      houseNo: map['houseNo'] ?? '',
+      area: map['area'] ?? '',
+      landmark: map['landmark'] ?? '',
       isAdmin: map['isAdmin'] ?? false,
     );
   }
 }
 
 class AuthRepository {
-  final ApiClient _apiClient = ApiClient();
+  final FirebaseService _db = FirebaseService.instance;
 
   Future<UserProfile> verifyOtp(String phone, String otp) async {
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 800)); // Simulate api call delay
-      
-      final mockUser = UserProfile(
-        id: 'mock_usr_${phone.substring(phone.length - 4)}',
-        phone: phone,
-        name: 'Customer ${phone.substring(phone.length - 4)}',
-        isAdmin: phone.endsWith('9999') || phone == '9876543210',
-      );
-      
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', 'mock_phone_$phone');
-      await prefs.setString('user_profile', jsonEncode(mockUser.toMap()));
-      
-      return mockUser;
-    } else {
-      final response = await _apiClient.post('/auth/verify-otp', {
-        'phone': phone,
-        'otp': otp,
-      });
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final token = data['token'];
-        final userProfile = UserProfile.fromMap(data['user']);
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', token);
-        await prefs.setString('user_profile', jsonEncode(userProfile.toMap()));
-
-        return userProfile;
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to verify OTP');
-      }
+    // 1. Mock verify SMS code (standard code 123456)
+    if (otp != '123456') {
+      throw Exception('Invalid OTP verification code');
     }
+
+    // 2. Fetch user document from Firestore `/users` collection
+    final existingUsers = await _db.collectionGetWhere('users', 'phone', phone);
+    UserProfile profile;
+
+    if (existingUsers.isNotEmpty) {
+      profile = UserProfile.fromMap(existingUsers.first);
+    } else {
+      // 3. Create a new Firestore user document on signup
+      final isAdmin = phone.endsWith('9999') || phone == '9876543210';
+      final newUserMap = {
+        'phone': phone,
+        'name': 'Customer ${phone.substring(phone.length - 4)}',
+        'houseNo': '',
+        'area': '',
+        'landmark': '',
+        'isAdmin': isAdmin,
+      };
+
+      final createdDoc = await _db.docAdd('users', newUserMap);
+      profile = UserProfile.fromMap(createdDoc);
+    }
+
+    // Associate past orders with this newly created user ID
+    _db.associateUserOrders(phone, profile.id);
+
+    // 4. Cache JWT mock token and profile in shared_preferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', 'mock_firebase_auth_token_${profile.id}');
+    await prefs.setString('user_profile', jsonEncode(profile.toMap()));
+
+    return profile;
   }
 
   Future<UserProfile?> getCachedUser() async {
@@ -102,15 +100,23 @@ class AuthRepository {
   Future<UserProfile> updateProfile(String name, String houseNo, String area, String landmark) async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString('user_profile');
-    UserProfile current;
-    
-    if (cached != null) {
-      current = UserProfile.fromMap(jsonDecode(cached));
-    } else {
-      throw Exception('No user is currently logged in');
+    if (cached == null) {
+      throw Exception('No authenticated user found');
     }
 
-    final updated = UserProfile(
+    final current = UserProfile.fromMap(jsonDecode(cached));
+    final updatedMap = {
+      'name': name,
+      'houseNo': houseNo,
+      'area': area,
+      'landmark': landmark,
+    };
+
+    // 1. Update document in Firestore
+    await _db.docUpdate('users', current.id, updatedMap);
+
+    // 2. Refresh local Cache
+    final updatedProfile = UserProfile(
       id: current.id,
       phone: current.phone,
       name: name,
@@ -120,30 +126,8 @@ class AuthRepository {
       isAdmin: current.isAdmin,
     );
 
-    if (ApiConstants.useMockApi) {
-      await Future.delayed(const Duration(milliseconds: 600));
-      await prefs.setString('user_profile', jsonEncode(updated.toMap()));
-      return updated;
-    } else {
-      final response = await _apiClient.put('/auth/profile', {
-        'name': name,
-        'address': {
-          'houseNo': houseNo,
-          'area': area,
-          'landmark': landmark,
-        }
-      });
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final userProfile = UserProfile.fromMap(data['user']);
-        await prefs.setString('user_profile', jsonEncode(userProfile.toMap()));
-        return userProfile;
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to update profile');
-      }
-    }
+    await prefs.setString('user_profile', jsonEncode(updatedProfile.toMap()));
+    return updatedProfile;
   }
 
   Future<void> logout() async {

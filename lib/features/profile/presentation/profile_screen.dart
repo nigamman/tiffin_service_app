@@ -253,11 +253,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Offline Mock API",
+                            "Emulated Firestore Mode",
                             style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark, fontSize: 14),
                           ),
                           Text(
-                            "Disables Node.js server connections",
+                            "Uses emulated Cloud Firestore collections",
                             style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
                           ),
                         ],
@@ -266,18 +266,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         value: _useMockMode,
                         activeColor: AppTheme.primaryGreen,
                         onChanged: (val) {
-                          setState(() {
-                            _useMockMode = val;
-                            ApiConstants.useMockApi = val;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                val ? "Switched to Standalone Mock API Mode" : "Switched to Live API Node Server Mode",
+                          if (val == false) {
+                            // Inform user that actual Firebase linking is required
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("To use live database, install Firebase packages and run 'flutterfire configure'."),
+                                duration: Duration(seconds: 4),
                               ),
-                              backgroundColor: AppTheme.primaryGreen,
-                            ),
-                          );
+                            );
+                            setState(() {
+                              _useMockMode = true; // Force it back to true since packages aren't imported yet
+                            });
+                          } else {
+                            setState(() {
+                              _useMockMode = true;
+                              ApiConstants.useMockApi = true;
+                            });
+                          }
                         },
                       ),
                     ],
