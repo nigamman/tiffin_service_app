@@ -39,6 +39,7 @@ class AppTheme {
         ),
         margin: EdgeInsets.zero,
       ),
+      // Consistent Typography throughout using Outfit font
       textTheme: TextTheme(
         displayLarge: GoogleFonts.outfit(
           fontSize: 32,
@@ -53,18 +54,18 @@ class AppTheme {
           height: 1.3,
         ),
         titleLarge: GoogleFonts.outfit(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
           color: textDark,
         ),
-        bodyLarge: GoogleFonts.plusJakartaSans(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
+        bodyLarge: GoogleFonts.outfit(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
           color: textDark,
           height: 1.5,
         ),
-        bodyMedium: GoogleFonts.plusJakartaSans(
-          fontSize: 14,
+        bodyMedium: GoogleFonts.outfit(
+          fontSize: 13,
           fontWeight: FontWeight.normal,
           color: textMuted,
           height: 1.5,
@@ -106,7 +107,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: errorColor),
         ),
-        hintStyle: GoogleFonts.plusJakartaSans(
+        hintStyle: GoogleFonts.outfit(
           fontSize: 14,
           color: textMuted.withOpacity(0.7),
         ),

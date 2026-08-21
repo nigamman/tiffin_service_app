@@ -96,138 +96,195 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         itemBuilder: (context, index) {
           final order = activeOrders[index];
           
-          // Calculate remaining meals
           final totalMeals = order.mealsCount;
           final skippedCount = order.skippedDates.length;
-          // In a real app, you would subtract completed deliveries too.
-          // For MVP, we show remaining meals = total - skipped.
           final remainingMeals = (totalMeals - skippedCount).clamp(0, totalMeals);
 
-          // Check if tomorrow is skipped
+          // Calculate percentage for thin progress indicator
+          final double progressPercent = totalMeals > 0 ? remainingMeals / totalMeals : 0;
+
           final tomorrow = DateTime.now().add(const Duration(days: 1));
           final tomorrowNormalized = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
           final isTomorrowSkipped = order.skippedDates.any(
             (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(tomorrowNormalized),
           );
 
-          return Card(
+          return Container(
             margin: const EdgeInsets.only(bottom: 16),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          "${order.frequency.toUpperCase()} PLAN",
-                          style: const TextStyle(
-                            color: AppTheme.primaryGreen,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.borderLight, width: 0.8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Card Header Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryGreen.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "${order.frequency.toUpperCase()} PLAN",
+                        style: const TextStyle(
+                          color: AppTheme.primaryGreen,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                          letterSpacing: 1.0,
+                          fontFamily: 'Outfit',
                         ),
                       ),
-                      const Row(
+                    ),
+                    const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: AppTheme.successColor, size: 14),
+                        SizedBox(width: 6),
+                        Text(
+                          "Active",
+                          style: TextStyle(
+                            color: AppTheme.successColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontFamily: 'Outfit',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Meal Title
+                Text(
+                  "Home Tiffin Meal  •  ${order.quantity} Box",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: AppTheme.textDark,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Premium Progress Tracker
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Subscription Progress",
+                      style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontFamily: 'PlusJakartaSans'),
+                    ),
+                    Text(
+                      "$remainingMeals of $totalMeals meals left",
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen, fontFamily: 'Outfit'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: AppTheme.borderLight.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progressPercent,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryGreen,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const Divider(height: 32, color: AppTheme.borderLight),
+                
+                // Timeline Delivery details
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isTomorrowSkipped 
+                            ? AppTheme.errorColor.withOpacity(0.06)
+                            : AppTheme.primaryGreen.withOpacity(0.06),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isTomorrowSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
+                        size: 18,
+                        color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.circle, color: AppTheme.successColor, size: 10),
-                          SizedBox(width: 6),
                           Text(
-                            "Confirmed",
+                            isTomorrowSkipped
+                                ? "Tomorrow's Delivery Skipped"
+                                : "Scheduled Tomorrow",
                             style: TextStyle(
-                              color: AppTheme.successColor,
                               fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.textDark,
+                              fontFamily: 'Outfit',
+                            ),
+                          ),
+                          Text(
+                            isTomorrowSkipped
+                                ? "You will not receive tiffin box for tomorrow's ${order.deliverySlot} slot."
+                                : "Delivered tomorrow during ${order.deliverySlot.toUpperCase()} slot (12-2 PM).",
+                            style: const TextStyle(
                               fontSize: 12,
+                              color: AppTheme.textMuted,
+                              height: 1.3,
+                              fontFamily: 'PlusJakartaSans',
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Home Tiffin Meal x ${order.quantity}",
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Remaining meals: $remainingMeals / $totalMeals",
-                    style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
-                  ),
-                  const Divider(height: 24, color: AppTheme.borderLight),
-                  
-                  // Next delivery slot info
-                  Row(
-                    children: [
-                      const Icon(Icons.delivery_dining, size: 20, color: AppTheme.textMuted),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          isTomorrowSkipped
-                              ? "Next delivery: Skipped for tomorrow ❌"
-                              : "Next delivery: Tomorrow • ${order.deliverySlot.toUpperCase()}",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.textDark,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  // Skip tomorrow option (Only for daily, weekly, monthly subscription models)
-                  if (order.frequency != 'one-time') ...[
-                    const SizedBox(height: 16),
-                    if (isTomorrowSkipped)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.errorColor.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            "Tomorrow's meal delivery skipped",
-                            style: TextStyle(color: AppTheme.errorColor, fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      )
-                    else
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.secondaryMarigold,
-                          side: const BorderSide(color: AppTheme.secondaryMarigold, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          minimumSize: const Size(double.infinity, 44),
-                        ),
-                        icon: const Icon(Icons.skip_next, size: 18),
-                        label: const Text("Skip Tomorrow's Delivery"),
-                        onPressed: () {
-                          // Skip date
-                          context.read<OrdersCubit>().skipDeliveryDate(order.id, tomorrowNormalized);
-                          NotificationOverlay.show(
-                            context,
-                            title: "Delivery Skipped",
-                            message: "Your tiffin delivery is skipped for tomorrow.",
-                            icon: Icons.skip_next,
-                          );
-                        },
-                      ),
+                    ),
                   ],
+                ),
+                
+                // Skip options
+                if (order.frequency != 'one-time') ...[
+                  const SizedBox(height: 20),
+                  if (!isTomorrowSkipped)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.secondaryMarigold,
+                        side: const BorderSide(color: AppTheme.secondaryMarigold, width: 1.2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        minimumSize: const Size(double.infinity, 44),
+                        textStyle: const TextStyle(fontFamily: 'Outfit', fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      icon: const Icon(Icons.skip_next_outlined, size: 16),
+                      label: const Text("Skip Tomorrow's Delivery"),
+                      onPressed: () {
+                        context.read<OrdersCubit>().skipDeliveryDate(order.id, tomorrowNormalized);
+                        NotificationOverlay.show(
+                          context,
+                          title: "Delivery Skipped",
+                          message: "Your tiffin delivery has been skipped for tomorrow.",
+                          icon: Icons.skip_next,
+                        );
+                      },
+                    ),
                 ],
-              ),
+              ],
             ),
           );
         },
@@ -247,42 +304,85 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         final order = orderHistory[index];
         final formattedDate = DateFormat('dd MMM yyyy').format(order.createdAt);
 
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Order #${order.id.toUpperCase().substring(order.id.length - 6)}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.borderLight, width: 0.8),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Calendar/History Icon
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: order.orderStatus == 'cancelled'
+                      ? AppTheme.errorColor.withOpacity(0.06)
+                      : AppTheme.primaryGreen.withOpacity(0.06),
+                  shape: BoxShape.circle,
                 ),
-                Text(
-                  "₹${order.finalAmount.toStringAsFixed(0)}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen, fontFamily: 'Outfit'),
+                child: Icon(
+                  order.orderStatus == 'cancelled' 
+                      ? Icons.cancel_outlined 
+                      : Icons.assignment_turned_in_outlined,
+                  size: 20,
+                  color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.primaryGreen,
                 ),
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 6),
-                Text(
-                  "${order.frequency.toUpperCase()} plan • ${order.quantity} box • $formattedDate",
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+              ),
+              const SizedBox(width: 16),
+              
+              // Metadata
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Order #${order.id.toUpperCase().substring(order.id.length - 6)}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: AppTheme.textDark,
+                        fontFamily: 'Outfit',
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      "${order.frequency.toUpperCase()} plan • ${order.quantity} box • $formattedDate",
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted, fontFamily: 'PlusJakartaSans'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  order.orderStatus == 'cancelled' ? "🔴 Cancelled" : "🟢 Completed",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.successColor,
+              ),
+              
+              // Price and status badge
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "₹${order.finalAmount.toStringAsFixed(0)}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppTheme.primaryGreen,
+                      fontFamily: 'Outfit',
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 3),
+                  Text(
+                    order.orderStatus == 'cancelled' ? "Cancelled" : "Completed",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.successColor,
+                      fontFamily: 'Outfit',
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },

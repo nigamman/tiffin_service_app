@@ -84,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 24),
                           Center(
                             child: Text(
-                              "Kanpur Tiffin Service",
+                              "Atithi Bhoj Tiffin Service",
                               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: AppTheme.primaryGreen,

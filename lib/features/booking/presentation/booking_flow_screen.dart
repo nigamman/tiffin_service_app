@@ -19,7 +19,6 @@ class BookingFlowScreen extends StatelessWidget {
       create: (context) {
         final cubit = BookingCubit();
         
-        // Pre-fill user phone and address if logged in, to make checkout extremely smooth!
         final authState = context.read<AuthCubit>().state;
         if (authState is AuthAuthenticated) {
           final user = authState.user;
@@ -35,11 +34,10 @@ class BookingFlowScreen extends StatelessWidget {
       },
       child: WillPopScope(
         onWillPop: () async {
-          // Confirm discard booking flow
           return await showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text("Exit Checkout?", style: TextStyle(fontFamily: 'Outfit')),
+                  title: const Text("Cancel Checkout?", style: TextStyle(fontFamily: 'Outfit')),
                   content: const Text("Are you sure you want to stop booking your tiffin? All details will be lost."),
                   actions: [
                     TextButton(
@@ -64,12 +62,15 @@ class BookingFlowScreen extends StatelessWidget {
               OrderSummaryStep(menu: menu),
             ];
 
-            final stepTitles = ["Frequency", "Address", "Summary"];
+            final stepTitles = ["Choose Frequency", "Delivery Address", "Verify Summary"];
 
             return Scaffold(
               backgroundColor: AppTheme.backgroundLight,
               appBar: AppBar(
-                title: Text("Checkout - ${stepTitles[state.step]}"),
+                title: Text(
+                  stepTitles[state.step],
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit', fontSize: 18),
+                ),
                 backgroundColor: Colors.white,
                 elevation: 0,
                 leading: IconButton(
@@ -85,68 +86,64 @@ class BookingFlowScreen extends StatelessWidget {
               ),
               body: Column(
                 children: [
-                  // Step Indicator Header
+                  // Premium Stories-style Step Indicator Bar
                   Container(
                     color: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                    child: Row(
-                      children: List.generate(steps.length, (index) {
-                        final isCompleted = index < state.step;
-                        final isActive = index == state.step;
-                        return Expanded(
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 24,
-                                height: 24,
+                    padding: const EdgeInsets.only(left: 24, right: 24, top: 8, bottom: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Thin Segment Bars
+                        Row(
+                          children: List.generate(steps.length, (index) {
+                            final isCompleted = index < state.step;
+                            final isActive = index == state.step;
+                            
+                            return Expanded(
+                              child: Container(
+                                height: 4,
+                                margin: EdgeInsets.only(
+                                  right: index < steps.length - 1 ? 6.0 : 0.0,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isActive || isCompleted
                                       ? AppTheme.primaryGreen
                                       : AppTheme.borderLight,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: isCompleted
-                                      ? const Icon(Icons.check, size: 14, color: Colors.white)
-                                      : Text(
-                                          "${index + 1}",
-                                          style: TextStyle(
-                                            color: isActive || isCompleted
-                                                ? Colors.white
-                                                : AppTheme.textMuted,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                  borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                stepTitles[index],
-                                style: TextStyle(
-                                  color: isActive
-                                      ? AppTheme.primaryGreen
-                                      : isCompleted
-                                          ? AppTheme.textDark
-                                          : AppTheme.textMuted,
-                                  fontWeight: isActive || isCompleted
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  fontSize: 13,
-                                  fontFamily: 'Outfit',
-                                ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Editorial text indicator
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "STEP ${state.step + 1} OF 3",
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.secondaryMarigold,
+                                letterSpacing: 1.5,
+                                fontFamily: 'Outfit',
                               ),
-                              if (index < steps.length - 1)
-                                const Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                    child: Divider(color: AppTheme.borderLight, thickness: 1),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      }),
+                            ),
+                            Text(
+                              state.step < steps.length - 1 
+                                  ? "Next: ${stepTitles[state.step + 1]}"
+                                  : "Final Step",
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textMuted,
+                                fontFamily: 'PlusJakartaSans',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   const Divider(height: 1, color: AppTheme.borderLight),

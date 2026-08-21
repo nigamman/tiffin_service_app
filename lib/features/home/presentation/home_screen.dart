@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'menu_cubit.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../tiffin_details/presentation/tiffin_details_screen.dart';
 import '../../admin/presentation/admin_dashboard_screen.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/custom_button.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final todayStr = DateFormat('EEEE, d MMMM').format(DateTime.now());
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       body: SafeArea(
@@ -20,11 +23,148 @@ class HomeScreen extends StatelessWidget {
           color: AppTheme.primaryGreen,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Block
+                // 1. Top Brand Tagline & Leaf Icon (Location removed)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Kanpur's First Tiffin Service",
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.secondaryMarigold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    
+                    // Top Right Action Leaf Icon
+                    BlocBuilder<AuthCubit, AuthState>(
+                      builder: (context, authState) {
+                        final isAdmin = authState is AuthAuthenticated && authState.user.isAdmin;
+                        return GestureDetector(
+                          onTap: () {
+                            if (isAdmin) {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AdminDashboardScreen(),
+                                  ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.primaryGreen,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.eco,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // 2. Greeting & Promise Card Side-by-Side (Consistent Outfit Font)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left Column: Greetings
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Atithi Bhoj",
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryGreen,
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Ghar jaisa swad, bina kisi jhanjhat ke.",
+                            style: GoogleFonts.outfit(
+                              color: AppTheme.textMuted,
+                              fontSize: 12,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    
+                    // Right Column: Promise Card
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.borderLight, width: 0.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.eco_outlined, color: AppTheme.primaryGreen, size: 16),
+                                SizedBox(width: 4),
+                                Text(
+                                  "Today's Promise",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textDark,
+                                    fontFamily: 'Outfit',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "Fresh ingredients. No compromise. Just like home.",
+                              style: GoogleFonts.outfit(
+                                fontSize: 10,
+                                color: AppTheme.textMuted,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // 3. Feature Badges (Outfit Font)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildFeatureBadge(Icons.eco_outlined, "100% Veg"),
+                    _buildFeatureBadge(Icons.soup_kitchen_outlined, "Ghar Jaisa Swad"),
+                    _buildFeatureBadge(Icons.delivery_dining_outlined, "On Time Delivery"),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // 4. Today's Bhoj Header Block (Outfit Font)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -32,209 +172,324 @@ class HomeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Kanpur's First",
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.secondaryMarigold,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.5,
-                              ),
+                          "Today's Bhoj",
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryGreen,
+                          ),
                         ),
                         Text(
-                          "Tiffin Service App",
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryGreen,
-                              ),
+                          todayStr,
+                          style: GoogleFonts.outfit(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
-                    // Show Admin Portal Button if user is admin
-                    BlocBuilder<AuthCubit, AuthState>(
-                      builder: (context, authState) {
-                        if (authState is AuthAuthenticated && authState.user.isAdmin) {
-                          return TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppTheme.secondaryMarigold,
-                              backgroundColor: AppTheme.secondaryMarigold.withOpacity(0.12),
-                            ),
-                            icon: const Icon(Icons.admin_panel_settings, size: 18),
-                            label: const Text("Admin"),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const AdminDashboardScreen(),
-                                ),
-                              );
-                            },
-                          );
-                        }
-                        return const SizedBox();
-                      },
-                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  "Fresh, hot, and homemade meals cooked with love, delivered to your office or home in Kanpur.",
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // Offers Slider Section
-                const PromoSection(),
-                const SizedBox(height: 24),
-
-                // Today's Menu Section Header
-                Text(
-                  "Today's Special",
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 12),
-
-                // Today's Tiffin Card
+                // 5. Main Special Menu spotlight Card (Outfit Font)
                 BlocBuilder<MenuCubit, MenuState>(
                   builder: (context, state) {
                     if (state is MenuLoading) {
-                      return const SizedBox(
-                        height: 200,
-                        child: Center(
-                          child: CircularProgressIndicator(color: AppTheme.primaryGreen),
-                        ),
+                      return Container(
+                        height: 300,
+                        alignment: Alignment.center,
+                        child: const CircularProgressIndicator(color: AppTheme.primaryGreen),
                       );
                     } else if (state is MenuLoaded) {
                       final menu = state.menu;
-                      return Card(
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Hero Food Image
-                            Stack(
+
+                      final List<String> mains = menu.items.where((i) => i.contains('Dal') || i.contains('Sabzi') || i.contains('Paneer')).toList();
+                      final List<String> breads = menu.items.where((i) => i.contains('Roti') || i.contains('Rice') || i.contains('Paratha')).toList();
+                      final List<String> sides = menu.items.where((i) => !mains.contains(i) && !breads.contains(i)).toList();
+
+                      // Price calculations
+                      final double regularPrice = menu.price;
+                      final double origPrice = regularPrice + 30; // Mock original price
+                      final int discountPercent = (((origPrice - regularPrice) / origPrice) * 100).round();
+
+                      return Column(
+                        children: [
+                          // Highlight Card
+                          Container(
+                            padding: const EdgeInsets.all(20.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppTheme.borderLight, width: 0.5),
+                            ),
+                            child: Row(
                               children: [
-                                Image.network(
-                                  menu.imageUrl,
-                                  height: 180,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (c, e, s) => Container(
-                                    height: 180,
-                                    color: AppTheme.borderLight,
-                                    child: const Icon(Icons.fastfood, size: 64, color: AppTheme.textMuted),
+                                // Left details panel
+                                Expanded(
+                                  flex: 11,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Special\nHome Meal ✨",
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryGreen,
+                                          height: 1.15,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        "Wholesome, balanced and cooked with love.",
+                                        style: GoogleFonts.outfit(
+                                          color: AppTheme.textMuted,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "₹${regularPrice.toStringAsFixed(0)}",
+                                            style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.primaryGreen,
+                                              fontFamily: 'Outfit',
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "₹${origPrice.toStringAsFixed(0)}",
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: AppTheme.textMuted,
+                                              decoration: TextDecoration.lineThrough,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              "$discountPercent% OFF",
+                                              style: TextStyle(
+                                                color: Colors.green.shade700,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                Positioned(
-                                  top: 12,
-                                  left: 12,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primaryGreen,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(Icons.circle, color: Colors.green, size: 8),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          "Pure Veg",
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            fontFamily: 'Outfit',
-                                          ),
+                                const SizedBox(width: 10),
+                                
+                                // Right circular bowl image cropping
+                                Expanded(
+                                  flex: 10,
+                                  child: AspectRatio(
+                                    aspectRatio: 1,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        image: DecorationImage(
+                                          image: NetworkImage(menu.imageUrl),
+                                          fit: BoxFit.cover,
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 6. Food Category details bar
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppTheme.borderLight, width: 0.5),
+                            ),
+                            child: Row(
+                              children: [
+                                _buildCategoryColumn("🍲 Mains", mains),
+                                _buildVerticalDivider(),
+                                _buildCategoryColumn("🫓 Breads", breads),
+                                _buildVerticalDivider(),
+                                _buildCategoryColumn("🥗 Sides", sides),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 7. Offer applied indicator
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.shade100, width: 0.5),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.local_offer, color: AppTheme.successColor, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "FIRSTTIFFIN applied",
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.successColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      "  •  You save ₹30 on this order",
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 11,
+                                        color: AppTheme.textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Icon(Icons.check_circle, color: AppTheme.successColor, size: 18),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 8. Order Button
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => TiffinDetailsScreen(menu: menu),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              height: 54,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryGreen,
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Row(
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        "Home Tiffin Meal",
-                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                      Text(
-                                        "₹${menu.price.toStringAsFixed(0)}",
-                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.primaryGreen,
-                                            ),
-                                      ),
-                                    ],
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.shopping_bag_outlined,
+                                      color: AppTheme.primaryGreen,
+                                      size: 16,
+                                    ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const Spacer(),
                                   Text(
-                                    "A balanced, light meal prepared clean. Just like home.",
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    "Order Today's Bhoj",
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                  const SizedBox(height: 16),
-                                  // Bullet list of items
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: menu.items.map((item) {
-                                      return Chip(
-                                        label: Text(
-                                          item,
-                                          style: const TextStyle(fontSize: 12, color: AppTheme.primaryGreen),
-                                        ),
-                                        backgroundColor: AppTheme.primaryGreen.withOpacity(0.06),
-                                        side: BorderSide.none,
-                                        visualDensity: VisualDensity.compact,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  CustomButton(
-                                    text: "Book Tiffin",
-                                    icon: Icons.shopping_basket,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => TiffinDetailsScreen(menu: menu),
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                                  const Spacer(),
+                                  const SizedBox(width: 32),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      );
-                    } else if (state is MenuError) {
-                      return SizedBox(
-                        height: 200,
-                        child: Center(
-                          child: Column(
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 9. Social Proof bar
+                          Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text("Error: ${state.message}"),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () => context.read<MenuCubit>().loadMenu(),
-                                child: const Text("Retry"),
-                              )
+                              Row(
+                                children: List.generate(3, (index) {
+                                  final avatars = [
+                                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80',
+                                    'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80',
+                                    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80'
+                                  ];
+                                  return Align(
+                                    widthFactor: 0.6,
+                                    child: CircleAvatar(
+                                      radius: 9,
+                                      backgroundColor: Colors.white,
+                                      child: CircleAvatar(
+                                        radius: 8,
+                                        backgroundImage: NetworkImage(avatars[index]),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                "Loved by 1,200+ customers in Kanpur",
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  color: AppTheme.textMuted,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              const Icon(Icons.star, color: Colors.orange, size: 12),
+                              const SizedBox(width: 2),
+                              Text(
+                                "4.8",
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textDark,
+                                ),
+                              ),
+                              Text(
+                                " (230+ reviews)",
+                                style: GoogleFonts.outfit(
+                                  fontSize: 9,
+                                  color: AppTheme.textMuted,
+                                ),
+                              ),
                             ],
                           ),
+                        ],
+                      );
+                    } else if (state is MenuError) {
+                      return Container(
+                        height: 200,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text("Oops! ${state.message}"),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () => context.read<MenuCubit>().loadMenu(),
+                              child: const Text("Retry"),
+                            ),
+                          ],
                         ),
                       );
                     }
@@ -248,53 +503,61 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-class PromoSection extends StatelessWidget {
-  const PromoSection({Key? key}) : super(key: key);
+  Widget _buildFeatureBadge(IconData icon, String label) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGreen.withOpacity(0.06),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppTheme.primaryGreen, size: 16),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textDark,
+          ),
+        ),
+      ],
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildVerticalDivider() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppTheme.secondaryMarigold.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.secondaryMarigold.withOpacity(0.2)),
-      ),
-      child: Row(
+      height: 40,
+      width: 0.5,
+      color: AppTheme.borderLight,
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+    );
+  }
+
+  Widget _buildCategoryColumn(String categoryName, List<String> dishes) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.secondaryMarigold.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.local_offer,
-              color: AppTheme.secondaryMarigold,
-              size: 20,
+          Text(
+            categoryName,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryGreen,
+              fontFamily: 'Outfit',
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Get ₹30 OFF today!",
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                Text(
-                  "Use code FIRSTTIFFIN at checkout",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textMuted,
-                      ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            dishes.isNotEmpty ? dishes.join('\n') : '-',
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              color: AppTheme.textDark,
+              height: 1.3,
             ),
           ),
         ],

@@ -106,7 +106,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
                     style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
                   ),
                   Text(
-                    "Kanpur Tiffin Service",
+                    "Atithi Bhoj Tiffin Service",
                     style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ],

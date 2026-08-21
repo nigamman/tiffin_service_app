@@ -31,7 +31,7 @@ class TiffinServiceApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: "Kanpur's First Tiffin Service",
+        title: "Atithi Bhoj Tiffin Service",
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const MainLayout(),
