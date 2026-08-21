@@ -372,9 +372,10 @@ class HomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
 
-                          // 8. Order Button
-                          GestureDetector(
-                            onTap: () {
+                          // 8. Swipe to Order Button
+                          SwipeOrderButton(
+                            text: "Swipe to Order Today's Bhoj",
+                            onSwipeCompleted: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -382,43 +383,6 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: Container(
-                              height: 54,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryGreen,
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.shopping_bag_outlined,
-                                      color: AppTheme.primaryGreen,
-                                      size: 16,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    "Order Today's Bhoj",
-                                    style: GoogleFonts.outfit(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
-                                  const Spacer(),
-                                  const SizedBox(width: 32),
-                                ],
-                              ),
-                            ),
                           ),
                           const SizedBox(height: 16),
 
@@ -562,6 +526,188 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Premium Slide/Swipe to Order Confirmation Button with Animating Chevrons
+class SwipeOrderButton extends StatefulWidget {
+  final VoidCallback onSwipeCompleted;
+  final String text;
+
+  const SwipeOrderButton({
+    Key? key,
+    required this.onSwipeCompleted,
+    this.text = "Swipe to Order Today's Bhoj",
+  }) : super(key: key);
+
+  @override
+  State<SwipeOrderButton> createState() => _SwipeOrderButtonState();
+}
+
+class _SwipeOrderButtonState extends State<SwipeOrderButton> with TickerProviderStateMixin {
+  double _dragPercent = 0.0;
+  late AnimationController _controller;
+  late AnimationController _arrowController;
+  late Animation<double> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _slideAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(_controller);
+
+    // Continuous marquee flow animation for chevron arrows
+    _arrowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _arrowController.dispose();
+    super.dispose();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details, double maxDragWidth) {
+    setState(() {
+      _dragPercent += details.primaryDelta! / maxDragWidth;
+      _dragPercent = _dragPercent.clamp(0.0, 1.0);
+    });
+  }
+
+  void _onDragEnd() {
+    if (_dragPercent > 0.85) {
+      widget.onSwipeCompleted();
+      setState(() {
+        _dragPercent = 1.0;
+      });
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _animateTo(0.0);
+        }
+      });
+    } else {
+      _animateTo(0.0);
+    }
+  }
+
+  void _animateTo(double target) {
+    _slideAnimation = Tween<double>(
+      begin: _dragPercent,
+      end: target,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    
+    _controller.forward(from: 0.0).then((_) {
+      setState(() {
+        _dragPercent = target;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const double buttonHeight = 56.0;
+        const double handleSize = 44.0;
+        final double maxDragWidth = constraints.maxWidth - handleSize - 12.0;
+
+        final double currentOffset = _controller.isAnimating 
+            ? _slideAnimation.value * maxDragWidth 
+            : _dragPercent * maxDragWidth;
+
+        return Container(
+          width: double.infinity,
+          height: buttonHeight,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGreen,
+            borderRadius: BorderRadius.circular(buttonHeight / 2),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6.0),
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              // Sliding prompt text
+              Align(
+                alignment: Alignment.center,
+                child: Opacity(
+                  opacity: (1.0 - _dragPercent * 1.5).clamp(0.1, 1.0),
+                  child: Text(
+                    widget.text,
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Chevron arrows indicating swipe direction (Marquee flow wave)
+              Positioned(
+                right: 24,
+                child: Opacity(
+                  opacity: (1.0 - _dragPercent * 2.0).clamp(0.0, 1.0),
+                  child: AnimatedBuilder(
+                    animation: _arrowController,
+                    builder: (context, child) {
+                      return Row(
+                        children: List.generate(3, (index) {
+                          // Computes forward marquee opacity shift
+                          final double delayFraction = index * 0.25;
+                          double val = (_arrowController.value - delayFraction) % 1.0;
+                          double opacity = (1.0 - (val - 0.5).abs() * 3.0).clamp(0.15, 1.0);
+                          
+                          return Icon(
+                            Icons.chevron_right,
+                            color: Colors.white.withOpacity(opacity),
+                            size: 16,
+                          );
+                        }),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // Draggable white handle
+              Positioned(
+                left: currentOffset,
+                child: GestureDetector(
+                  onHorizontalDragUpdate: (details) => _onDragUpdate(details, maxDragWidth),
+                  onHorizontalDragEnd: (details) => _onDragEnd(),
+                  child: Container(
+                    width: handleSize,
+                    height: handleSize,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        )
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: AppTheme.primaryGreen,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
