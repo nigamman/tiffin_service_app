@@ -226,7 +226,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textMuted, fontFamily: 'PlusJakartaSans'),
+                style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
               ),
               Icon(icon, color: color, size: 22),
             ],
@@ -237,7 +237,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                   color: AppTheme.textDark,
-                  fontFamily: 'Outfit',
                 ),
           ),
         ],
@@ -272,7 +271,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           children: [
             Icon(icon, size: 20, color: AppTheme.primaryGreen),
             const SizedBox(width: 10),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),

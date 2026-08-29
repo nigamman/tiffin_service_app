@@ -71,7 +71,6 @@ class NotificationOverlay {
                               color: Colors.white,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              fontFamily: 'Outfit',
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -80,7 +79,6 @@ class NotificationOverlay {
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
                               fontSize: 13,
-                              fontFamily: 'PlusJakartaSans',
                             ),
                           ),
                         ],

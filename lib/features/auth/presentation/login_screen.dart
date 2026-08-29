@@ -39,6 +39,8 @@ class _LoginScreenState extends State<LoginScreen> {
               builder: (context) => OtpScreen(phone: state.phone),
             ),
           );
+        } else if (state is AuthAuthenticated) {
+          Navigator.maybePop(context);
         } else if (state is AuthError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -153,16 +155,42 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 24),
                           // Verify CTA
-                          BlocBuilder<AuthCubit, AuthState>(
-                            builder: (context, state) {
-                              return CustomButton(
-                                text: "Get OTP",
-                                isLoading: state is AuthLoading,
-                                onPressed: _submit,
-                              );
-                            },
-                          ),
-                          const Spacer(flex: 3),
+                           BlocBuilder<AuthCubit, AuthState>(
+                             builder: (context, state) {
+                               return CustomButton(
+                                 text: "Get OTP",
+                                 isLoading: state is AuthLoading && state is! AuthOtpSent,
+                                 onPressed: _submit,
+                               );
+                             },
+                           ),
+                           const SizedBox(height: 24),
+                           // OR Divider
+                           const Row(
+                             children: [
+                               Expanded(child: Divider(color: AppTheme.borderLight, thickness: 1)),
+                               Padding(
+                                 padding: EdgeInsets.symmetric(horizontal: 16.0),
+                                 child: Text(
+                                   "OR",
+                                   style: TextStyle(
+                                     color: AppTheme.textMuted,
+                                     fontSize: 12,
+                                     fontWeight: FontWeight.bold,
+                                   ),
+                                 ),
+                               ),
+                               Expanded(child: Divider(color: AppTheme.borderLight, thickness: 1)),
+                             ],
+                           ),
+                           const SizedBox(height: 24),
+                           // Google Sign-In Button
+                           BlocBuilder<AuthCubit, AuthState>(
+                             builder: (context, state) {
+                               return _buildGoogleSignInButton(context, state);
+                             },
+                           ),
+                           const Spacer(flex: 3),
                           // Trust Footer
                           const Center(
                             child: Row(
@@ -175,7 +203,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AppTheme.textMuted,
-                                    fontFamily: 'PlusJakartaSans',
                                   ),
                                 ),
                               ],
@@ -188,6 +215,65 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoogleSignInButton(BuildContext context, AuthState state) {
+    final isLoading = state is AuthLoading;
+    
+    return Container(
+      width: double.infinity,
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderLight, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: isLoading ? null : () => context.read<AuthCubit>().signInWithGoogle(),
+          child: Center(
+            child: isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.network(
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
+                        height: 20,
+                        width: 20,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "Continue with Google",
+                        style: TextStyle(
+                          color: AppTheme.textDark,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),

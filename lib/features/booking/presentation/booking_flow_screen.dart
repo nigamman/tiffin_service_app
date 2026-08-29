@@ -10,14 +10,19 @@ import '../../../core/theme/app_theme.dart';
 
 class BookingFlowScreen extends StatelessWidget {
   final MenuModel menu;
+  final String initialSlot;
 
-  const BookingFlowScreen({Key? key, required this.menu}) : super(key: key);
+  const BookingFlowScreen({
+    Key? key,
+    required this.menu,
+    this.initialSlot = 'lunch',
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) {
-        final cubit = BookingCubit();
+        final cubit = BookingCubit(initialSlot: initialSlot);
         
         final authState = context.read<AuthCubit>().state;
         if (authState is AuthAuthenticated) {
@@ -37,7 +42,7 @@ class BookingFlowScreen extends StatelessWidget {
           return await showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text("Cancel Checkout?", style: TextStyle(fontFamily: 'Outfit')),
+                  title: const Text("Cancel Checkout?"),
                   content: const Text("Are you sure you want to stop booking your tiffin? All details will be lost."),
                   actions: [
                     TextButton(
@@ -69,7 +74,7 @@ class BookingFlowScreen extends StatelessWidget {
               appBar: AppBar(
                 title: Text(
                   stepTitles[state.step],
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit', fontSize: 18),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
                 backgroundColor: Colors.white,
                 elevation: 0,
@@ -128,7 +133,6 @@ class BookingFlowScreen extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.secondaryMarigold,
                                 letterSpacing: 1.5,
-                                fontFamily: 'Outfit',
                               ),
                             ),
                             Text(
@@ -138,7 +142,6 @@ class BookingFlowScreen extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: AppTheme.textMuted,
-                                fontFamily: 'PlusJakartaSans',
                               ),
                             ),
                           ],

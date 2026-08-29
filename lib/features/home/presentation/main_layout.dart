@@ -57,8 +57,8 @@ class _MainLayoutState extends State<MainLayout> {
               backgroundColor: Colors.white,
               selectedItemColor: AppTheme.primaryGreen,
               unselectedItemColor: AppTheme.textMuted,
-              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
-              unselectedLabelStyle: const TextStyle(fontFamily: 'Outfit'),
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              unselectedLabelStyle: const TextStyle(),
               elevation: 0,
               type: BottomNavigationBarType.fixed,
               items: const [

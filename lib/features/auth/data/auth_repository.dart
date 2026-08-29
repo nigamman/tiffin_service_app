@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/services/firebase_service.dart';
 
 class UserProfile {
@@ -134,5 +136,62 @@ class AuthRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     await prefs.remove('user_profile');
+    try {
+      await GoogleSignIn().signOut();
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+  }
+
+  Future<UserProfile> signInWithGoogle() async {
+    // 1. Trigger the Google Authentication flow
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    if (googleUser == null) {
+      throw Exception('Google Sign-In was cancelled');
+    }
+
+    // 2. Obtain the auth details from the request
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+    // 3. Create a new credential
+    final OAuthCredential credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    // 4. Sign in to Firebase with the credential
+    final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+    final User? firebaseUser = userCredential.user;
+
+    if (firebaseUser == null) {
+      throw Exception('Firebase Sign-In failed');
+    }
+
+    // 5. Look up or create user profile in Firestore
+    final existingUsers = await _db.collectionGetWhere('users', 'id', firebaseUser.uid);
+    UserProfile profile;
+
+    if (existingUsers.isNotEmpty) {
+      profile = UserProfile.fromMap(existingUsers.first);
+    } else {
+      final newUserMap = {
+        'phone': firebaseUser.phoneNumber ?? '',
+        'name': firebaseUser.displayName ?? 'Customer',
+        'houseNo': '',
+        'area': '',
+        'landmark': '',
+        'isAdmin': false,
+      };
+      
+      // Set doc with Firebase User ID
+      final createdDoc = await _db.docSet('users', firebaseUser.uid, newUserMap);
+      profile = UserProfile.fromMap(createdDoc);
+    }
+
+    // Cache local profile
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', 'firebase_auth_token_${profile.id}');
+    await prefs.setString('user_profile', jsonEncode(profile.toMap()));
+
+    return profile;
   }
 }

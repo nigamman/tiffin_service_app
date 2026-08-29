@@ -140,7 +140,6 @@ class _OtpScreenState extends State<OtpScreen> {
                                     style: TextStyle(
                                       color: AppTheme.textDark,
                                       fontSize: 13,
-                                      fontFamily: 'PlusJakartaSans',
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),

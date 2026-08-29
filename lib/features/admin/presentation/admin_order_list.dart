@@ -47,7 +47,7 @@ class _AdminOrderListState extends State<AdminOrderList> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Cancel Order?", style: TextStyle(fontFamily: 'Outfit')),
+        title: const Text("Cancel Order?"),
         content: const Text("Are you sure you want to cancel this customer subscription?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Close")),
@@ -185,7 +185,7 @@ class _AdminOrderListState extends State<AdminOrderList> {
                                         children: [
                                           Text(
                                             "Order #${order.id.toUpperCase().substring(order.id.length - 6)}",
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                                            style: const TextStyle(fontWeight: FontWeight.bold),
                                           ),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

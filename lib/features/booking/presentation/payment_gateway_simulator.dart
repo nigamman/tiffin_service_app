@@ -28,7 +28,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
     });
 
     // Simulate network delay processing payment
-    await Future.delayed(const Duration(seconds: 1800));
+    await Future.delayed(const Duration(milliseconds: 1800));
 
     if (mounted) {
       setState(() {
@@ -116,7 +116,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
                 children: [
                   Text(
                     "₹${widget.amount.toStringAsFixed(2)}",
-                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const Text(
                     "Convenience fee: ₹0.00",
@@ -129,7 +129,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
           const SizedBox(height: 20),
           Text(
             "Order ID: ${widget.razorpayOrderId}",
-            style: const TextStyle(color: Colors.white38, fontSize: 11, fontFamily: 'Outfit'),
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
           const SizedBox(height: 24),
 

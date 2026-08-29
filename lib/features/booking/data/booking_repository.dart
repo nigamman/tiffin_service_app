@@ -107,10 +107,37 @@ class BookingRepository {
     }
 
     int mealsCount = 1;
-    if (frequency == 'weekly' || frequency == 'daily') mealsCount = 7;
-    if (frequency == 'monthly') mealsCount = 30;
+    int weeksMultiplier = 1;
+    
+    if (frequency == 'one-time') {
+      mealsCount = 1;
+      weeksMultiplier = 1;
+    } else if (frequency.startsWith('weekly')) {
+      weeksMultiplier = 2; // 2 weeks billing cycle
+      if (frequency == 'weekly_5' || frequency == 'weekly') {
+        mealsCount = 5;
+      } else if (frequency == 'weekly_6') {
+        mealsCount = 6;
+      } else if (frequency == 'weekly_7') {
+        mealsCount = 7;
+      }
+    } else if (frequency.startsWith('monthly')) {
+      weeksMultiplier = 2; // 2 weeks x 4 = 8 weeks billing cycle (2 months) or let's keep it simple:
+      // To match our monthly pricing:
+      // Mon-Fri: 20 delivery days * ₹120 * 2 (slots) = ₹4,800 (1 month duration)
+      // So multiplier is 1, mealsCount is 20, 24, or 30.
+      weeksMultiplier = 1;
+      if (frequency == 'monthly_20' || frequency == 'monthly') {
+        mealsCount = 20;
+      } else if (frequency == 'monthly_24') {
+        mealsCount = 24;
+      } else if (frequency == 'monthly_30') {
+        mealsCount = 30;
+      }
+    }
 
-    final subtotal = pricePerMeal * mealsCount * quantity;
+    final double slotMultiplier = (deliverySlot == 'both') ? 2.0 : 1.0;
+    final subtotal = pricePerMeal * mealsCount * slotMultiplier * weeksMultiplier * quantity;
     double discount = 0;
 
     if (couponCode != null && couponCode.isNotEmpty) {

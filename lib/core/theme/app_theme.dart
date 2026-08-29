@@ -39,38 +39,38 @@ class AppTheme {
         ),
         margin: EdgeInsets.zero,
       ),
-      // Consistent Typography throughout using Outfit font
+      // Consistent Typography throughout using Poppins font
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.outfit(
+        displayLarge: GoogleFonts.poppins(
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: textDark,
           height: 1.2,
         ),
-        headlineMedium: GoogleFonts.outfit(
+        headlineMedium: GoogleFonts.poppins(
           fontSize: 24,
           fontWeight: FontWeight.w700,
           color: textDark,
           height: 1.3,
         ),
-        titleLarge: GoogleFonts.outfit(
+        titleLarge: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.bold,
           color: textDark,
         ),
-        bodyLarge: GoogleFonts.outfit(
+        bodyLarge: GoogleFonts.poppins(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           color: textDark,
           height: 1.5,
         ),
-        bodyMedium: GoogleFonts.outfit(
+        bodyMedium: GoogleFonts.poppins(
           fontSize: 13,
           fontWeight: FontWeight.normal,
           color: textMuted,
           height: 1.5,
         ),
-        labelLarge: GoogleFonts.outfit(
+        labelLarge: GoogleFonts.poppins(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: Colors.white,
@@ -81,7 +81,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: textDark),
-        titleTextStyle: GoogleFonts.outfit(
+        titleTextStyle: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w700,
           color: textDark,
@@ -107,7 +107,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: errorColor),
         ),
-        hintStyle: GoogleFonts.outfit(
+        hintStyle: GoogleFonts.poppins(
           fontSize: 14,
           color: textMuted.withOpacity(0.7),
         ),
@@ -121,7 +121,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.outfit(
+          textStyle: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -130,7 +130,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primaryGreen,
-          textStyle: GoogleFonts.outfit(
+          textStyle: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),

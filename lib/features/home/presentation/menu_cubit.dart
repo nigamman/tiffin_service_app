@@ -14,10 +14,17 @@ class MenuLoading extends MenuState {}
 
 class MenuLoaded extends MenuState {
   final MenuModel menu;
-  const MenuLoaded(this.menu);
+  final MenuModel lunchMenu;
+  final MenuModel dinnerMenu;
+
+  const MenuLoaded({
+    required this.menu,
+    required this.lunchMenu,
+    required this.dinnerMenu,
+  });
 
   @override
-  List<Object?> get props => [menu];
+  List<Object?> get props => [menu, lunchMenu, dinnerMenu];
 }
 
 class MenuError extends MenuState {
@@ -38,18 +45,23 @@ class MenuCubit extends Cubit<MenuState> {
   Future<void> loadMenu() async {
     emit(MenuLoading());
     try {
-      final menu = await _repository.getActiveMenu();
-      emit(MenuLoaded(menu));
+      final menus = await _repository.getActiveMenus();
+      final lunch = menus.firstWhere((m) => m.slot == 'lunch', orElse: () => menus.first);
+      final dinner = menus.firstWhere((m) => m.slot == 'dinner', orElse: () => menus.last);
+      emit(MenuLoaded(menu: lunch, lunchMenu: lunch, dinnerMenu: dinner));
     } catch (e) {
       emit(MenuError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
-  Future<void> updateMenu(List<String> items, double price) async {
+  Future<void> updateMenu(List<String> items, double price, {String slot = 'lunch'}) async {
     emit(MenuLoading());
     try {
-      final updated = await _repository.updateActiveMenu(items, price);
-      emit(MenuLoaded(updated));
+      await _repository.updateActiveMenu(items, price, slot);
+      final menus = await _repository.getActiveMenus();
+      final lunch = menus.firstWhere((m) => m.slot == 'lunch', orElse: () => menus.first);
+      final dinner = menus.firstWhere((m) => m.slot == 'dinner', orElse: () => menus.last);
+      emit(MenuLoaded(menu: lunch, lunchMenu: lunch, dinnerMenu: dinner));
     } catch (e) {
       emit(MenuError(e.toString().replaceAll('Exception: ', '')));
     }

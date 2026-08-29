@@ -16,6 +16,7 @@ class OrderModel {
   final String paymentStatus;
   final String orderStatus;
   final List<DateTime> skippedDates;
+  final List<String> skippedSlots;
   final DateTime createdAt;
 
   OrderModel({
@@ -33,11 +34,13 @@ class OrderModel {
     required this.paymentStatus,
     required this.orderStatus,
     required this.skippedDates,
+    required this.skippedSlots,
     required this.createdAt,
   });
 
   factory OrderModel.fromMap(Map<String, dynamic> map) {
     final skippedRaw = map['skippedDates'] as List? ?? [];
+    final skippedSlotsRaw = map['skippedSlots'] as List? ?? [];
     return OrderModel(
       id: map['id'] ?? '',
       frequency: map['frequency'] ?? 'one-time',
@@ -53,6 +56,7 @@ class OrderModel {
       paymentStatus: map['paymentStatus'] ?? 'pending',
       orderStatus: map['orderStatus'] ?? 'confirmed',
       skippedDates: skippedRaw.map((d) => DateTime.parse(d as String)).toList(),
+      skippedSlots: List<String>.from(skippedSlotsRaw),
       createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
     );
   }
@@ -73,6 +77,7 @@ class OrderModel {
       'paymentStatus': paymentStatus,
       'orderStatus': orderStatus,
       'skippedDates': skippedDates.map((d) => d.toIso8601String()).toList(),
+      'skippedSlots': skippedSlots,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -111,6 +116,48 @@ class OrdersRepository {
     // Update orders document in Firestore
     await _db.docUpdate('orders', orderId, {
       'skippedDates': skippedStrings,
+    });
+
+    final updatedDoc = await _db.docGet('orders', orderId);
+    return OrderModel.fromMap(updatedDoc!);
+  }
+
+  Future<OrderModel> skipSlot(String orderId, String slotKey) async {
+    final order = await _db.docGet('orders', orderId);
+    if (order == null) throw Exception('Order not found');
+
+    final List skippedRaw = order['skippedSlots'] as List? ?? [];
+    final List<String> skippedStrings = List<String>.from(skippedRaw);
+    
+    if (skippedStrings.contains(slotKey)) {
+      throw Exception('This slot is already skipped');
+    }
+
+    skippedStrings.add(slotKey);
+
+    await _db.docUpdate('orders', orderId, {
+      'skippedSlots': skippedStrings,
+    });
+
+    final updatedDoc = await _db.docGet('orders', orderId);
+    return OrderModel.fromMap(updatedDoc!);
+  }
+
+  Future<OrderModel> unskipSlot(String orderId, String slotKey) async {
+    final order = await _db.docGet('orders', orderId);
+    if (order == null) throw Exception('Order not found');
+
+    final List skippedRaw = order['skippedSlots'] as List? ?? [];
+    final List<String> skippedStrings = List<String>.from(skippedRaw);
+    
+    if (!skippedStrings.contains(slotKey)) {
+      throw Exception('This slot is not skipped');
+    }
+
+    skippedStrings.remove(slotKey);
+
+    await _db.docUpdate('orders', orderId, {
+      'skippedSlots': skippedStrings,
     });
 
     final updatedDoc = await _db.docGet('orders', orderId);

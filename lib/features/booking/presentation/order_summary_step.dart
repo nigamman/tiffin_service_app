@@ -89,12 +89,37 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
       ],
       child: BlocBuilder<BookingCubit, BookingState>(
         builder: (context, state) {
-          final double mealPrice = widget.menu.price;
-          int mealsCount = 1;
-          if (state.frequency == 'weekly' || state.frequency == 'daily') mealsCount = 7;
-          if (state.frequency == 'monthly') mealsCount = 30;
+          final double pricePerMeal = widget.menu.price;
+          
+          // Parse tab and days
+          String currentTab = 'weekly';
+          if (state.frequency == 'one-time') {
+            currentTab = 'one-time';
+          } else if (state.frequency.startsWith('monthly')) {
+            currentTab = 'monthly';
+          }
 
-          final double subtotal = mealPrice * mealsCount * state.quantity;
+          int mealsCount = 1;
+          if (state.frequency == 'one-time') {
+            mealsCount = 1;
+          } else if (state.frequency == 'weekly_5' || state.frequency == 'weekly') {
+            mealsCount = 5;
+          } else if (state.frequency == 'weekly_6') {
+            mealsCount = 6;
+          } else if (state.frequency == 'weekly_7') {
+            mealsCount = 7;
+          } else if (state.frequency == 'monthly_20' || state.frequency == 'monthly') {
+            mealsCount = 20;
+          } else if (state.frequency == 'monthly_24') {
+            mealsCount = 24;
+          } else if (state.frequency == 'monthly_30') {
+            mealsCount = 30;
+          }
+
+          final double slotMultiplier = state.deliverySlot == 'both' ? 2.0 : 1.0;
+          final int weeksMultiplier = currentTab == 'weekly' ? 2 : 1;
+
+          final double subtotal = pricePerMeal * mealsCount * slotMultiplier * weeksMultiplier * state.quantity;
           final double discount = state.appliedCoupon?.discountAmount ?? 0.0;
           final double total = subtotal - discount;
 
@@ -117,13 +142,19 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.borderLight),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
                       _buildSummaryRow(
                         "Plan Choice",
-                        "${state.frequency.toUpperCase()} Plan (${mealsCount} meals)",
+                        "${state.frequency.toUpperCase().replaceAll('_', ' ')} Plan (${mealsCount * weeksMultiplier} Meals)",
                       ),
                       const SizedBox(height: 8),
                       _buildSummaryRow(
@@ -274,7 +305,6 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
           style: const TextStyle(
             color: AppTheme.textMuted,
             fontSize: 13,
-            fontFamily: 'PlusJakartaSans',
           ),
         ),
         const SizedBox(width: 16),
@@ -286,7 +316,6 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
               fontWeight: FontWeight.w600,
               fontSize: 13,
               color: isMuted ? AppTheme.textMuted : AppTheme.textDark,
-              fontFamily: 'Outfit',
             ),
           ),
         ),
@@ -304,7 +333,6 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
             fontSize: isBold ? 16 : 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
             color: isBold ? AppTheme.textDark : AppTheme.textMuted,
-            fontFamily: isBold ? 'Outfit' : 'PlusJakartaSans',
           ),
         ),
         Text(
@@ -313,7 +341,6 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
             fontSize: isBold ? 18 : 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.bold,
             color: color ?? AppTheme.textDark,
-            fontFamily: 'Outfit',
           ),
         ),
       ],

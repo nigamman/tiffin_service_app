@@ -5,6 +5,7 @@ import 'orders_cubit.dart';
 import '../data/orders_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/notification_overlay.dart';
+import 'subscription_details_screen.dart';
 
 
 class MyOrdersScreen extends StatefulWidget {
@@ -43,11 +44,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           labelColor: AppTheme.primaryGreen,
           unselectedLabelColor: AppTheme.textMuted,
           indicatorColor: AppTheme.primaryGreen,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
-          unselectedLabelStyle: const TextStyle(fontFamily: 'Outfit'),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          unselectedLabelStyle: const TextStyle(),
           tabs: const [
-            Tab(text: "Active Plans"),
-            Tab(text: "Order History"),
+            Tab(text: "My Subscriptions"),
+            Tab(text: "One-Time Orders"),
           ],
         ),
       ),
@@ -84,7 +85,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
 
   Widget _buildActivePlansList(List<OrderModel> activeOrders) {
     if (activeOrders.isEmpty) {
-      return _buildEmptyState("No active plans found", "Order today's fresh tiffin to start a plan!");
+      return _buildEmptyState("No subscriptions found", "Subscribe to a daily, weekly, or monthly plan today!");
     }
 
     return RefreshIndicator(
@@ -97,27 +98,118 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           final order = activeOrders[index];
           
           final totalMeals = order.mealsCount;
-          final skippedCount = order.skippedDates.length;
-          final remainingMeals = (totalMeals - skippedCount).clamp(0, totalMeals);
+          
+          final now = DateTime.now();
+          final todayNormalized = DateTime(now.year, now.month, now.day);
+          final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
+          
+          int deliveredMeals = 0;
+          if (!todayNormalized.isBefore(startNormalized)) {
+            final elapsedDays = todayNormalized.difference(startNormalized).inDays + 1;
+            final multiplier = order.deliverySlot == 'both' ? 2 : 1;
+            final totalElapsedSlots = elapsedDays * multiplier;
+            
+            final elapsedFullDaySkips = order.skippedDates
+                .where((d) => !d.isAfter(todayNormalized))
+                .length * multiplier;
+                
+            int elapsedSlotSkips = 0;
+            for (final slotKey in order.skippedSlots) {
+              try {
+                final dateStr = slotKey.split('_')[0];
+                final slotDate = DateTime.parse(dateStr);
+                if (!slotDate.isAfter(todayNormalized)) {
+                  slotDate.isBefore(todayNormalized) || slotDate.isAtSameMomentAs(todayNormalized);
+                  elapsedSlotSkips++;
+                }
+              } catch (_) {}
+            }
+            
+            final totalSkips = elapsedFullDaySkips + elapsedSlotSkips;
+            deliveredMeals = (totalElapsedSlots - totalSkips).clamp(0, totalMeals);
+          }
+          
+          final remainingMeals = (totalMeals - deliveredMeals).clamp(0, totalMeals);
 
           // Calculate percentage for thin progress indicator
           final double progressPercent = totalMeals > 0 ? remainingMeals / totalMeals : 0;
 
-          final tomorrow = DateTime.now().add(const Duration(days: 1));
-          final tomorrowNormalized = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
-          final isTomorrowSkipped = order.skippedDates.any(
-            (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(tomorrowNormalized),
+          // Determine the cutoff time for today's delivery (2 hours before delivery slot)
+          int cutoffHour = 9; // 9:30 AM
+          int cutoffMinute = 30;
+          String cutoffText = "9:30 AM";
+          if (order.deliverySlot == 'dinner') {
+            cutoffHour = 17; // 5:00 PM
+            cutoffMinute = 0;
+            cutoffText = "5:00 PM";
+          } else if (order.deliverySlot == 'both') {
+            cutoffHour = 9; // 9:30 AM for lunch
+            cutoffMinute = 30;
+            cutoffText = "9:30 AM";
+          }
+          
+          final todayCutoff = DateTime(now.year, now.month, now.day, cutoffHour, cutoffMinute);
+          
+          DateTime targetSkipDate;
+          if (startNormalized.isAfter(todayNormalized)) {
+            targetSkipDate = startNormalized;
+          } else if (now.isBefore(todayCutoff)) {
+            targetSkipDate = todayNormalized;
+          } else {
+            targetSkipDate = todayNormalized.add(const Duration(days: 1));
+          }
+          
+          final isTargetSkipped = order.skippedDates.any(
+            (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(targetSkipDate),
           );
+          
+          final isTargetToday = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
+              .isAtSameMomentAs(todayNormalized);
+          
+          final String dayLabel = isTargetToday ? "Today" : "Tomorrow";
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(20.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.borderLight, width: 0.8),
-            ),
-            child: Column(
+          // Count skipped slots in these 7 days
+          int skipCount = 0;
+          final List<DateTime> next7Days = List.generate(7, (i) => todayNormalized.add(Duration(days: i)));
+          for (final day in next7Days) {
+            final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(day));
+            if (isDaySkipped) {
+              skipCount++;
+              continue;
+            }
+            for (final slot in ['lunch', 'dinner']) {
+              final slotKey = "${DateFormat('yyyy-MM-dd').format(day)}_$slot";
+              if (order.skippedSlots.contains(slotKey)) {
+                skipCount++;
+              }
+            }
+          }
+          final bool hasReachedSkipLimit = skipCount >= 1;
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SubscriptionDetailsScreen(order: order),
+                ),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.015),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Card Header Row
@@ -127,17 +219,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.06),
+                        color: order.frequency == 'one-time'
+                            ? AppTheme.secondaryMarigold.withOpacity(0.08)
+                            : AppTheme.primaryGreen.withOpacity(0.06),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        "${order.frequency.toUpperCase()} PLAN",
-                        style: const TextStyle(
-                          color: AppTheme.primaryGreen,
+                        order.frequency == 'one-time'
+                            ? "ONE-TIME MEAL"
+                            : "${order.frequency.toUpperCase()} SUBSCRIPTION",
+                        style: TextStyle(
+                          color: order.frequency == 'one-time'
+                              ? AppTheme.secondaryMarigold
+                              : AppTheme.primaryGreen,
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
                           letterSpacing: 1.0,
-                          fontFamily: 'Outfit',
                         ),
                       ),
                     ),
@@ -151,7 +248,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                             color: AppTheme.successColor,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
-                            fontFamily: 'Outfit',
                           ),
                         ),
                       ],
@@ -167,46 +263,48 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                     color: AppTheme.textDark,
-                    fontFamily: 'Outfit',
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                // Premium Progress Tracker
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Subscription Progress",
-                      style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontFamily: 'PlusJakartaSans'),
-                    ),
-                    Text(
-                      "$remainingMeals of $totalMeals meals left",
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen, fontFamily: 'Outfit'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: AppTheme.borderLight.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(3),
+                if (order.frequency != 'one-time') ...[
+                  // Premium Progress Tracker
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Subscription Progress",
+                        style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                      ),
+                      Text(
+                        "$remainingMeals of $totalMeals meals left",
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                      ),
+                    ],
                   ),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: progressPercent,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen,
-                        borderRadius: BorderRadius.circular(3),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: AppTheme.borderLight.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progressPercent,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryGreen,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
                     ),
                   ),
-                ),
-
-                const Divider(height: 32, color: AppTheme.borderLight),
+                  const Divider(height: 32, color: AppTheme.borderLight),
+                ] else ...[
+                  const Divider(height: 24, color: AppTheme.borderLight),
+                ],
                 
                 // Timeline Delivery details
                 Row(
@@ -215,15 +313,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isTomorrowSkipped 
+                        color: isTargetSkipped 
                             ? AppTheme.errorColor.withOpacity(0.06)
                             : AppTheme.primaryGreen.withOpacity(0.06),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        isTomorrowSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
+                        isTargetSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
                         size: 18,
-                        color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
+                        color: isTargetSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -232,25 +330,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isTomorrowSkipped
-                                ? "Tomorrow's Delivery Skipped"
-                                : "Scheduled Tomorrow",
+                            isTargetSkipped
+                                ? "$dayLabel's Delivery Skipped"
+                                : "Scheduled $dayLabel",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
-                              color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.textDark,
-                              fontFamily: 'Outfit',
+                              color: isTargetSkipped ? AppTheme.errorColor : AppTheme.textDark,
                             ),
                           ),
                           Text(
-                            isTomorrowSkipped
-                                ? "You will not receive tiffin box for tomorrow's ${order.deliverySlot} slot."
-                                : "Delivered tomorrow during ${order.deliverySlot.toUpperCase()} slot (12-2 PM).",
+                            isTargetSkipped
+                                ? "You will not receive tiffin box for $dayLabel's ${order.deliverySlot} slot."
+                                : "Delivered $dayLabel during ${order.deliverySlot.toUpperCase()} slot (12-2 PM).",
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppTheme.textMuted,
                               height: 1.3,
-                              fontFamily: 'PlusJakartaSans',
                             ),
                           ),
                         ],
@@ -262,39 +358,64 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                 // Skip options
                 if (order.frequency != 'one-time') ...[
                   const SizedBox(height: 20),
-                  if (!isTomorrowSkipped)
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.secondaryMarigold,
-                        side: const BorderSide(color: AppTheme.secondaryMarigold, width: 1.2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        minimumSize: const Size(double.infinity, 44),
-                        textStyle: const TextStyle(fontFamily: 'Outfit', fontSize: 13, fontWeight: FontWeight.bold),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
+                          ? AppTheme.textMuted 
+                          : AppTheme.secondaryMarigold,
+                      side: BorderSide(
+                        color: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
+                            ? AppTheme.borderLight 
+                            : AppTheme.secondaryMarigold,
+                        width: 1.2,
                       ),
-                      icon: const Icon(Icons.skip_next_outlined, size: 16),
-                      label: const Text("Skip Tomorrow's Delivery"),
-                      onPressed: () {
-                        context.read<OrdersCubit>().skipDeliveryDate(order.id, tomorrowNormalized);
-                        NotificationOverlay.show(
-                          context,
-                          title: "Delivery Skipped",
-                          message: "Your tiffin delivery has been skipped for tomorrow.",
-                          icon: Icons.skip_next,
-                        );
-                      },
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      minimumSize: const Size(double.infinity, 44),
+                      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                     ),
+                    icon: Icon(
+                      isTargetSkipped 
+                          ? Icons.check_circle_outline 
+                          : (hasReachedSkipLimit ? Icons.lock_outline : Icons.skip_next_outlined),
+                      size: 16,
+                    ),
+                    label: Text(
+                      isTargetSkipped 
+                          ? "Delivery Skipped" 
+                          : (hasReachedSkipLimit ? "Weekly Skip Limit Reached" : "Skip $dayLabel's Delivery"),
+                    ),
+                    onPressed: (isTargetSkipped || hasReachedSkipLimit)
+                        ? null
+                        : () {
+                            context.read<OrdersCubit>().skipDeliveryDate(order.id, targetSkipDate);
+                            NotificationOverlay.show(
+                              context,
+                              title: "Delivery Skipped",
+                              message: "Your delivery has been skipped for ${isTargetToday ? 'today' : 'tomorrow'}.",
+                              icon: Icons.skip_next,
+                            );
+                          },
+                  ),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      "Note: Skip requests accepted up to 2 hours before delivery ($cutoffText cutoff)",
+                      style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                    ),
+                  ),
                 ],
               ],
             ),
-          );
-        },
+          ),
+        );
+      },
       ),
     );
   }
 
   Widget _buildHistoryList(List<OrderModel> orderHistory) {
     if (orderHistory.isEmpty) {
-      return _buildEmptyState("No order history found", "Complete a tiffin subscription to see records here!");
+      return _buildEmptyState("No one-time orders found", "Order a single-day fresh meal to try Atithi Bhoj!");
     }
 
     return ListView.builder(
@@ -310,7 +431,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.borderLight, width: 0.8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.015),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -345,13 +472,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                         color: AppTheme.textDark,
-                        fontFamily: 'Outfit',
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       "${order.frequency.toUpperCase()} plan • ${order.quantity} box • $formattedDate",
-                      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted, fontFamily: 'PlusJakartaSans'),
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                     ),
                   ],
                 ),
@@ -367,7 +493,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                       color: AppTheme.primaryGreen,
-                      fontFamily: 'Outfit',
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -377,7 +502,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.successColor,
-                      fontFamily: 'Outfit',
                     ),
                   ),
                 ],
@@ -400,7 +524,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
             const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textDark, fontFamily: 'Outfit'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textDark),
             ),
             const SizedBox(height: 8),
             Text(

@@ -147,7 +147,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: AppTheme.primaryGreen,
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          fontFamily: 'Outfit',
                         ),
                       ),
                     ),

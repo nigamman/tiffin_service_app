@@ -16,22 +16,32 @@ class _AdminMenuManagementState extends State<AdminMenuManagement> {
   late TextEditingController _priceController;
   final List<TextEditingController> _itemControllers = [];
   bool _isLoading = false;
+  String _selectedSlot = 'lunch';
 
   @override
   void initState() {
     super.initState();
-    _priceController = TextEditingController(text: "80");
-    
-    // Retrieve today's menu and pre-populate fields
+    _priceController = TextEditingController();
+    _loadMenuFields();
+  }
+
+  void _loadMenuFields() {
+    for (final controller in _itemControllers) {
+      controller.dispose();
+    }
+    _itemControllers.clear();
     final menuState = context.read<MenuCubit>().state;
     if (menuState is MenuLoaded) {
-      _priceController.text = menuState.menu.price.toStringAsFixed(0);
-      for (final item in menuState.menu.items) {
+      final menu = _selectedSlot == 'lunch' ? menuState.lunchMenu : menuState.dinnerMenu;
+      _priceController.text = menu.price.toStringAsFixed(0);
+      for (final item in menu.items) {
         _itemControllers.add(TextEditingController(text: item));
       }
     } else {
-      // Default placeholder fields
-      final defaults = ['Dal Fry', 'Seasonal Sabzi', '4 Roti', 'Steamed Rice', 'Salad', 'Pickle'];
+      final defaults = _selectedSlot == 'lunch' 
+          ? ['Dal Fry', 'Seasonal Sabzi', '4 Roti', 'Steamed Rice', 'Salad', 'Pickle']
+          : ['Paneer Butter Masala', 'Veg Jhalfrezi', '4 Roti', 'Steamed Rice', 'Salad', 'Rayta'];
+      _priceController.text = _selectedSlot == 'lunch' ? "80" : "90";
       for (final item in defaults) {
         _itemControllers.add(TextEditingController(text: item));
       }
@@ -75,10 +85,10 @@ class _AdminMenuManagementState extends State<AdminMenuManagement> {
           .toList();
 
       try {
-        await context.read<MenuCubit>().updateMenu(items, price);
+        await context.read<MenuCubit>().updateMenu(items, price, slot: _selectedSlot);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Today's menu updated successfully!")),
+            SnackBar(content: Text("${_selectedSlot[0].toUpperCase()}${_selectedSlot.substring(1)} menu updated successfully!")),
           );
           Navigator.pop(context);
         }
@@ -122,6 +132,76 @@ class _AdminMenuManagementState extends State<AdminMenuManagement> {
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 18),
+
+              // Slot Toggle (Lunch / Dinner)
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_selectedSlot != 'lunch') {
+                            setState(() {
+                              _selectedSlot = 'lunch';
+                              _loadMenuFields();
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedSlot == 'lunch' ? AppTheme.primaryGreen : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            "Lunch Menu",
+                            style: TextStyle(
+                              color: _selectedSlot == 'lunch' ? Colors.white : AppTheme.textMuted,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_selectedSlot != 'dinner') {
+                            setState(() {
+                              _selectedSlot = 'dinner';
+                              _loadMenuFields();
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedSlot == 'dinner' ? AppTheme.primaryGreen : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            "Dinner Menu",
+                            style: TextStyle(
+                              color: _selectedSlot == 'dinner' ? Colors.white : AppTheme.textMuted,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
               // Meal Price Input
               Text(

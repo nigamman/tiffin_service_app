@@ -96,9 +96,10 @@ class BookingState extends Equatable {
 class BookingCubit extends Cubit<BookingState> {
   final BookingRepository _repository = BookingRepository();
 
-  BookingCubit()
+  BookingCubit({String initialSlot = 'lunch'})
       : super(BookingState(
           startDate: DateTime.now().add(const Duration(days: 1)),
+          deliverySlot: initialSlot,
         ));
 
   void setFrequency(String freq) {

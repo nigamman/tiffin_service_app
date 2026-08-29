@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "57069695734",
+    "project_id": "tiffin-service-cd4fb",
+    "storage_bucket": "tiffin-service-cd4fb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:57069695734:android:f23e978c288d0b473ff2d7",
+        "android_client_info": {
+          "package_name": "com.example.tiffin_service_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEmicQIfps62Rqpr1McMCVuOMDT7Njav4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

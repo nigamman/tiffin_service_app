@@ -71,7 +71,13 @@ class OrderConfirmationScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.borderLight),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -139,7 +145,6 @@ class OrderConfirmationScreen extends StatelessWidget {
           style: const TextStyle(
             color: AppTheme.textMuted,
             fontSize: 14,
-            fontFamily: 'PlusJakartaSans',
           ),
         ),
         Text(
@@ -148,7 +153,6 @@ class OrderConfirmationScreen extends StatelessWidget {
             fontWeight: FontWeight.bold,
             fontSize: isHighlight ? 16 : 14,
             color: isHighlight ? AppTheme.secondaryMarigold : AppTheme.textDark,
-            fontFamily: 'Outfit',
           ),
         ),
       ],
