@@ -97,7 +97,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         itemBuilder: (context, index) {
           final order = activeOrders[index];
           
-          final totalMeals = order.mealsCount;
+          final slotMultiplier = order.deliverySlot == 'both' ? 2 : 1;
+          final int weeksMultiplier = 1;
+          final totalMeals = order.mealsCount * slotMultiplier * weeksMultiplier;
           
           final now = DateTime.now();
           final todayNormalized = DateTime(now.year, now.month, now.day);
@@ -105,9 +107,39 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           
           int deliveredMeals = 0;
           if (!todayNormalized.isBefore(startNormalized)) {
-            final elapsedDays = todayNormalized.difference(startNormalized).inDays + 1;
+            int totalElapsedSlots = 0;
+            final currentHour = now.hour;
+            final currentMinute = now.minute;
+            final currentFloatTime = currentHour + (currentMinute / 60.0);
+
+            for (int i = 0; i <= todayNormalized.difference(startNormalized).inDays; i++) {
+              final checkDate = startNormalized.add(Duration(days: i));
+              if (_isDeliveryDay(checkDate, order.frequency)) {
+                if (checkDate.isBefore(todayNormalized)) {
+                  // Past day: all slots elapsed
+                  totalElapsedSlots += (order.deliverySlot == 'both' ? 2 : 1);
+                } else if (checkDate.isAtSameMomentAs(todayNormalized)) {
+                  // Today: check which slots have actually finished delivery window
+                  if (order.deliverySlot == 'lunch') {
+                    if (currentFloatTime >= 13.5) { // Lunch ends at 1:30 PM (13.5)
+                      totalElapsedSlots += 1;
+                    }
+                  } else if (order.deliverySlot == 'dinner') {
+                    if (currentFloatTime >= 21.0) { // Dinner ends at 9:00 PM (21.0)
+                      totalElapsedSlots += 1;
+                    }
+                  } else if (order.deliverySlot == 'both') {
+                    if (currentFloatTime >= 21.0) {
+                      totalElapsedSlots += 2; // both lunch and dinner ended
+                    } else if (currentFloatTime >= 13.5) {
+                      totalElapsedSlots += 1; // only lunch ended
+                    }
+                  }
+                }
+              }
+            }
+
             final multiplier = order.deliverySlot == 'both' ? 2 : 1;
-            final totalElapsedSlots = elapsedDays * multiplier;
             
             final elapsedFullDaySkips = order.skippedDates
                 .where((d) => !d.isAfter(todayNormalized))
@@ -119,7 +151,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                 final dateStr = slotKey.split('_')[0];
                 final slotDate = DateTime.parse(dateStr);
                 if (!slotDate.isAfter(todayNormalized)) {
-                  slotDate.isBefore(todayNormalized) || slotDate.isAtSameMomentAs(todayNormalized);
                   elapsedSlotSkips++;
                 }
               } catch (_) {}
@@ -165,8 +196,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           
           final isTargetToday = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
               .isAtSameMomentAs(todayNormalized);
+          final isTargetTomorrow = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
+              .isAtSameMomentAs(todayNormalized.add(const Duration(days: 1)));
           
-          final String dayLabel = isTargetToday ? "Today" : "Tomorrow";
+          final String dayLabel = isTargetToday 
+              ? "Today" 
+              : (isTargetTomorrow ? "Tomorrow" : DateFormat('EEEE, dd MMM').format(targetSkipDate));
+
+          final String slotTimingText;
+          if (order.deliverySlot == 'lunch') {
+            slotTimingText = "11:30 AM - 1:30 PM";
+          } else if (order.deliverySlot == 'dinner') {
+            slotTimingText = "7:00 PM - 9:00 PM";
+          } else {
+            slotTimingText = "Lunch: 11:30 AM - 1:30 PM & Dinner: 7:00 PM - 9:00 PM";
+          }
 
           // Count skipped slots in these 7 days
           int skipCount = 0;
@@ -342,7 +386,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                           Text(
                             isTargetSkipped
                                 ? "You will not receive tiffin box for $dayLabel's ${order.deliverySlot} slot."
-                                : "Delivered $dayLabel during ${order.deliverySlot.toUpperCase()} slot (12-2 PM).",
+                                : "Delivered $dayLabel during ${order.deliverySlot.toUpperCase()} slot ($slotTimingText).",
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppTheme.textMuted,
@@ -391,7 +435,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                             NotificationOverlay.show(
                               context,
                               title: "Delivery Skipped",
-                              message: "Your delivery has been skipped for ${isTargetToday ? 'today' : 'tomorrow'}.",
+                              message: "Your delivery has been skipped for $dayLabel.",
                               icon: Icons.skip_next,
                             );
                           },
@@ -425,21 +469,30 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         final order = orderHistory[index];
         final formattedDate = DateFormat('dd MMM yyyy').format(order.createdAt);
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.015),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SubscriptionDetailsScreen(order: order),
               ),
-            ],
-          ),
-          child: Row(
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.015),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Calendar/History Icon
@@ -508,7 +561,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
               ),
             ],
           ),
-        );
+        ),
+      );
       },
     );
   }
@@ -536,5 +590,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         ),
       ),
     );
+  }
+
+  bool _isDeliveryDay(DateTime date, String frequency) {
+    final weekday = date.weekday; // 1 = Monday, ..., 7 = Sunday
+    
+    if (frequency.contains('_5') || frequency == 'weekly' || frequency == 'monthly') {
+      return weekday >= 1 && weekday <= 5;
+    } else if (frequency.contains('_6')) {
+      return weekday >= 1 && weekday <= 6;
+    }
+    return true;
   }
 }

@@ -622,6 +622,134 @@ class _TiffinDetailsScreenState extends State<TiffinDetailsScreen> {
     );
   }
 
+  void _handleBooking(BuildContext context) {
+    final now = DateTime.now();
+    final hour = now.hour;
+    final minute = now.minute;
+    final double timeOfDay = hour + (minute / 60.0);
+
+    // Lunch cutoff: 9:30 AM (9.5)
+    // Dinner cutoff: 5:00 PM (17.0)
+
+    String finalSlot = widget.initialSlot;
+    DateTime startDate = DateTime.now(); // Default to today!
+    bool showNoonPopup = false;
+    bool showNightPopup = false;
+
+    if (widget.initialSlot == 'lunch') {
+      if (timeOfDay >= 9.5 && timeOfDay < 17.0) {
+        // Noon booking: Lunch is selected, but lunch cutoff passed, dinner is open.
+        // Change slot to dinner and show popup!
+        finalSlot = 'dinner';
+        startDate = DateTime.now(); // Deliver tonight
+        showNoonPopup = true;
+      } else if (timeOfDay >= 17.0) {
+        // Night booking: cutoffs passed. Start tomorrow!
+        startDate = DateTime.now().add(const Duration(days: 1));
+        showNightPopup = true;
+      }
+    } else {
+      // Dinner is selected
+      if (timeOfDay >= 17.0) {
+        // Night booking: Dinner cutoff passed. Start tomorrow!
+        startDate = DateTime.now().add(const Duration(days: 1));
+        showNightPopup = true;
+      }
+    }
+
+    if (showNoonPopup) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            "Lunch Cutoff Passed",
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF222222),
+            ),
+          ),
+          content: Text(
+            "Today's Lunch cutoff (9:30 AM) has passed. Your tiffin will be delivered tonight for Dinner (7:00 PM - 9:00 PM) instead.",
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _navigateToBookingFlow(context, finalSlot, startDate);
+              },
+              child: Text(
+                "Proceed",
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF0B4828),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (showNightPopup) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            "Order Starts Tomorrow",
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF222222),
+            ),
+          ),
+          content: Text(
+            "Today's delivery cutoffs have passed. Your warm fresh tiffin will be scheduled and delivered starting tomorrow.",
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _navigateToBookingFlow(context, finalSlot, startDate);
+              },
+              child: Text(
+                "Proceed",
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF0B4828),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      _navigateToBookingFlow(context, finalSlot, startDate);
+    }
+  }
+
+  void _navigateToBookingFlow(BuildContext context, String slot, DateTime startDate) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookingFlowScreen(
+          menu: widget.menu,
+          initialSlot: slot,
+          initialStartDate: startDate,
+          initialQuantity: _quantity,
+        ),
+      ),
+    );
+  }
+
   Widget _bottomCart() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
@@ -663,28 +791,20 @@ class _TiffinDetailsScreenState extends State<TiffinDetailsScreen> {
                 ),
               ],
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             // Modern Quantity Selector Capsule
             _quantitySelector(),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             // Checkout Button
             Expanded(
               child: SizedBox(
                 height: 48,
                 child: BlocBuilder<AuthCubit, AuthState>(
                   builder: (context, authState) {
-                    return ElevatedButton.icon(
+                    return ElevatedButton(
                       onPressed: () {
                         if (authState is AuthAuthenticated) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => BookingFlowScreen(
-                                menu: widget.menu,
-                                initialSlot: widget.initialSlot,
-                              ),
-                            ),
-                          );
+                          _handleBooking(context);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Please sign in to continue booking.")),
@@ -697,23 +817,32 @@ class _TiffinDetailsScreenState extends State<TiffinDetailsScreen> {
                           );
                         }
                       },
-                      icon: const Icon(
-                        Icons.shopping_bag_outlined,
-                        size: 18,
-                      ),
-                      label: Text(
-                        'Add to Cart',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0B4828),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Add to Cart',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );

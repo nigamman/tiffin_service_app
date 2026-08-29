@@ -95,21 +95,33 @@ class BookingState extends Equatable {
 
 class BookingCubit extends Cubit<BookingState> {
   final BookingRepository _repository = BookingRepository();
+  DateTime _baseStartDate;
 
-  BookingCubit({String initialSlot = 'lunch'})
-      : super(BookingState(
-          startDate: DateTime.now().add(const Duration(days: 1)),
+  BookingCubit({String initialSlot = 'lunch', DateTime? initialStartDate, int initialQuantity = 1})
+      : _baseStartDate = initialStartDate ?? DateTime.now().add(const Duration(days: 1)),
+        super(BookingState(
+          startDate: _getNextValidDeliveryDay(
+            initialStartDate ?? DateTime.now().add(const Duration(days: 1)),
+            'weekly',
+          ),
           deliverySlot: initialSlot,
+          quantity: initialQuantity,
         ));
 
   void setFrequency(String freq) {
-    emit(state.copyWith(frequency: freq, error: () => null));
+    final nextDate = _getNextValidDeliveryDay(_baseStartDate, freq);
+    emit(state.copyWith(
+      frequency: freq,
+      startDate: nextDate,
+      error: () => null,
+    ));
   }
 
   void updateMealDetails(int qty, DateTime date, String slot) {
+    final nextDate = _getNextValidDeliveryDay(_baseStartDate, state.frequency);
     emit(state.copyWith(
       quantity: qty,
-      startDate: date,
+      startDate: nextDate,
       deliverySlot: slot,
       error: () => null,
     ));
@@ -238,8 +250,34 @@ class BookingCubit extends Cubit<BookingState> {
   }
 
   void reset() {
+    _baseStartDate = DateTime.now().add(const Duration(days: 1));
     emit(BookingState(
-      startDate: DateTime.now().add(const Duration(days: 1)),
+      startDate: _getNextValidDeliveryDay(
+        _baseStartDate,
+        'weekly',
+      ),
     ));
+  }
+
+  static bool _isDeliveryDay(DateTime date, String frequency) {
+    final weekday = date.weekday; // 1 = Monday, ..., 7 = Sunday
+    
+    if (frequency.contains('_5') || frequency == 'weekly' || frequency == 'monthly') {
+      return weekday >= 1 && weekday <= 5;
+    } else if (frequency.contains('_6')) {
+      return weekday >= 1 && weekday <= 6;
+    }
+    return true;
+  }
+
+  static DateTime _getNextValidDeliveryDay(DateTime startFrom, String frequency) {
+    DateTime checkDate = startFrom;
+    for (int i = 0; i < 7; i++) {
+      if (_isDeliveryDay(checkDate, frequency)) {
+        return checkDate;
+      }
+      checkDate = checkDate.add(const Duration(days: 1));
+    }
+    return startFrom;
   }
 }

@@ -117,7 +117,7 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
           }
 
           final double slotMultiplier = state.deliverySlot == 'both' ? 2.0 : 1.0;
-          final int weeksMultiplier = currentTab == 'weekly' ? 2 : 1;
+          final int weeksMultiplier = 1;
 
           final double subtotal = pricePerMeal * mealsCount * slotMultiplier * weeksMultiplier * state.quantity;
           final double discount = state.appliedCoupon?.discountAmount ?? 0.0;

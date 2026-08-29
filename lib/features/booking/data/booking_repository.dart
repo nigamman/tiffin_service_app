@@ -113,7 +113,7 @@ class BookingRepository {
       mealsCount = 1;
       weeksMultiplier = 1;
     } else if (frequency.startsWith('weekly')) {
-      weeksMultiplier = 2; // 2 weeks billing cycle
+      weeksMultiplier = 1; // 1 week billing cycle
       if (frequency == 'weekly_5' || frequency == 'weekly') {
         mealsCount = 5;
       } else if (frequency == 'weekly_6') {

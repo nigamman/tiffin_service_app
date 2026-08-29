@@ -87,30 +87,62 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
 
     // Dynamic remaining meals calculation
     int deliveredMeals = 0;
-    final totalMeals = order.mealsCount;
-    if (!todayNormalized.isBefore(startNormalized)) {
-      final elapsedDays = todayNormalized.difference(startNormalized).inDays + 1;
-      final multiplier = order.deliverySlot == 'both' ? 2 : 1;
-      final totalElapsedSlots = elapsedDays * multiplier;
-      
-      final elapsedFullDaySkips = order.skippedDates
-          .where((d) => !d.isAfter(todayNormalized))
-          .length * multiplier;
-          
-      int elapsedSlotSkips = 0;
-      for (final slotKey in order.skippedSlots) {
-        try {
-          final dateStr = slotKey.split('_')[0];
-          final slotDate = DateTime.parse(dateStr);
-          if (!slotDate.isAfter(todayNormalized)) {
-            elapsedSlotSkips++;
+    final slotMultiplier = order.deliverySlot == 'both' ? 2 : 1;
+    final int weeksMultiplier = 1;
+    final totalMeals = order.mealsCount * slotMultiplier * weeksMultiplier;
+      if (!todayNormalized.isBefore(startNormalized)) {
+        int totalElapsedSlots = 0;
+        final currentHour = now.hour;
+        final currentMinute = now.minute;
+        final currentFloatTime = currentHour + (currentMinute / 60.0);
+
+        for (int i = 0; i <= todayNormalized.difference(startNormalized).inDays; i++) {
+          final checkDate = startNormalized.add(Duration(days: i));
+          if (_isDeliveryDay(checkDate, order.frequency)) {
+            if (checkDate.isBefore(todayNormalized)) {
+              // Past day: all slots elapsed
+              totalElapsedSlots += (order.deliverySlot == 'both' ? 2 : 1);
+            } else if (checkDate.isAtSameMomentAs(todayNormalized)) {
+              // Today: check which slots have actually finished delivery window
+              if (order.deliverySlot == 'lunch') {
+                if (currentFloatTime >= 13.5) { // Lunch ends at 1:30 PM (13.5)
+                  totalElapsedSlots += 1;
+                }
+              } else if (order.deliverySlot == 'dinner') {
+                if (currentFloatTime >= 21.0) { // Dinner ends at 9:00 PM (21.0)
+                  totalElapsedSlots += 1;
+                }
+              } else if (order.deliverySlot == 'both') {
+                if (currentFloatTime >= 21.0) {
+                  totalElapsedSlots += 2; // both lunch and dinner ended
+                } else if (currentFloatTime >= 13.5) {
+                  totalElapsedSlots += 1; // only lunch ended
+                }
+              }
+            }
           }
-        } catch (_) {}
+        }
+
+        final multiplier = order.deliverySlot == 'both' ? 2 : 1;
+        
+        final elapsedFullDaySkips = order.skippedDates
+            .where((d) => !d.isAfter(todayNormalized))
+            .length * multiplier;
+            
+        int elapsedSlotSkips = 0;
+        for (final slotKey in order.skippedSlots) {
+          try {
+            final dateStr = slotKey.split('_')[0];
+            final slotDate = DateTime.parse(dateStr);
+            if (!slotDate.isAfter(todayNormalized)) {
+              elapsedSlotSkips++;
+            }
+          } catch (_) {}
+        }
+        
+        final totalSkips = elapsedFullDaySkips + elapsedSlotSkips;
+        deliveredMeals = (totalElapsedSlots - totalSkips).clamp(0, totalMeals);
       }
-      
-      final totalSkips = elapsedFullDaySkips + elapsedSlotSkips;
-      deliveredMeals = (totalElapsedSlots - totalSkips).clamp(0, totalMeals);
-    }
 
     final remainingMeals = (totalMeals - deliveredMeals).clamp(0, totalMeals);
     final double progressPercent = totalMeals > 0 ? remainingMeals / totalMeals : 0;
@@ -357,9 +389,18 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
   Widget _buildSevenDayScheduleList(BuildContext context, OrderModel order, int skipCount) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final startDateNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
+    final DateTime scheduleStart = today.isBefore(startDateNormalized) ? startDateNormalized : today;
 
     // List of next 7 delivery days
-    final List<DateTime> nextDays = List.generate(7, (i) => today.add(Duration(days: i)));
+    final List<DateTime> nextDays = [];
+    DateTime checkDate = scheduleStart;
+    while (nextDays.length < 7) {
+      if (_isDeliveryDay(checkDate, order.frequency)) {
+        nextDays.add(checkDate);
+      }
+      checkDate = checkDate.add(const Duration(days: 1));
+    }
 
     return ListView.separated(
       shrinkWrap: true,
@@ -595,9 +636,12 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
   }
 
   Widget _buildBillingDetailsCard(OrderModel order) {
+    final String daysLabel = order.frequency == 'one-time' ? "1 Day" : "${order.mealsCount} Days";
+    final slotMultiplier = order.deliverySlot == 'both' ? 2 : 1;
+    
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.all(24),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -624,6 +668,23 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
           
           const Divider(height: 24, color: AppTheme.borderLight),
 
+          _buildBillingRow("Price Per Thali", "₹${order.pricePerMeal.toStringAsFixed(0)}"),
+          const SizedBox(height: 10),
+          _buildBillingRow("Plan Days", daysLabel),
+          const SizedBox(height: 10),
+          _buildBillingRow("Slots per Day", "$slotMultiplier Slot(s)"),
+          const SizedBox(height: 10),
+          _buildBillingRow("Quantity", "${order.quantity} Tiffin Box(es)"),
+          const SizedBox(height: 10),
+          _buildBillingRow("Subtotal", "₹${order.totalAmount.toStringAsFixed(0)}"),
+          
+          if (order.discountAmount > 0) ...[
+            const SizedBox(height: 10),
+            _buildBillingRow("Coupon Discount", "-₹${order.discountAmount.toStringAsFixed(0)}", isDiscount: true),
+          ],
+          
+          const Divider(height: 24, color: AppTheme.borderLight),
+
           _buildBillingRow("Total Paid", "₹${order.finalAmount.toStringAsFixed(0)}", isHighlight: true),
           const SizedBox(height: 10),
           _buildBillingRow("Contact Phone", order.contactPhone),
@@ -632,7 +693,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     );
   }
 
-  Widget _buildBillingRow(String label, String value, {bool isHighlight = false}) {
+  Widget _buildBillingRow(String label, String value, {bool isHighlight = false, bool isDiscount = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -647,7 +708,9 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
             textAlign: TextAlign.end,
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: isHighlight ? AppTheme.secondaryMarigold : AppTheme.textDark,
+              color: isHighlight 
+                  ? AppTheme.secondaryMarigold 
+                  : (isDiscount ? AppTheme.errorColor : AppTheme.textDark),
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -922,11 +985,11 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
               
               _buildTrackerStep(
                 stepIndex: 0,
-                icon: Icons.check_circle_outline,
+                icon: Icons.check,
                 title: "Order Placed",
                 subtitle: "Tiffin meal order accepted at Atithi Bhoj.",
-                isCompleted: _activeStage > 0,
-                isActive: _activeStage == 0,
+                isCompleted: true,
+                isActive: false,
                 isLast: false,
               ),
               _buildTrackerStep(
@@ -934,8 +997,8 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
                 icon: Icons.restaurant_menu_outlined,
                 title: "Meal Preparing",
                 subtitle: "Our chefs are cooking your fresh home tiffin.",
-                isCompleted: _activeStage > 1,
-                isActive: _activeStage == 1,
+                isCompleted: _activeStage >= 1,
+                isActive: _activeStage == 0,
                 isLast: false,
               ),
               _buildTrackerStep(
@@ -943,8 +1006,8 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
                 icon: Icons.delivery_dining_outlined,
                 title: "Out for Delivery",
                 subtitle: "Delivery partner has picked up your tiffin and is on the way.",
-                isCompleted: _activeStage > 2,
-                isActive: _activeStage == 2,
+                isCompleted: _activeStage >= 2,
+                isActive: _activeStage == 1,
                 isLast: false,
               ),
               _buildTrackerStep(
@@ -953,7 +1016,7 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
                 title: "Delivered",
                 subtitle: "Tiffin dropped off at your address. Enjoy your meal!",
                 isCompleted: _activeStage >= 3,
-                isActive: _activeStage == 3,
+                isActive: _activeStage == 2,
                 isLast: true,
               ),
             ],
@@ -1067,16 +1130,39 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
                     ? AppTheme.primaryGreen.withOpacity(0.06)
                     : (isActive ? AppTheme.secondaryMarigold.withOpacity(0.08) : Colors.transparent),
                 border: Border.all(
-                  color: stepColor,
+                  color: isActive ? Colors.transparent : stepColor,
                   width: 1.5,
                 ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 13,
-                color: stepColor,
-              ),
+              child: isActive
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              valueColor: AlwaysStoppedAnimation(AppTheme.secondaryMarigold),
+                            ),
+                          ),
+                          Icon(
+                            icon,
+                            size: 9,
+                            color: AppTheme.secondaryMarigold,
+                          ),
+                        ],
+                      ),
+                    )
+                  : Icon(
+                      isCompleted ? Icons.check : icon,
+                      size: 13,
+                      color: stepColor,
+                    ),
             ),
             if (!isLast)
               Container(
@@ -1115,4 +1201,15 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
       ],
     );
   }
+}
+
+bool _isDeliveryDay(DateTime date, String frequency) {
+  final weekday = date.weekday; // 1 = Monday, ..., 7 = Sunday
+  
+  if (frequency.contains('_5') || frequency == 'weekly' || frequency == 'monthly') {
+    return weekday >= 1 && weekday <= 5;
+  } else if (frequency.contains('_6')) {
+    return weekday >= 1 && weekday <= 6;
+  }
+  return true;
 }

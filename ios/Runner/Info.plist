@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to verify if you are within our 5km delivery radius of Kalyanpur, Kanpur.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to verify if you are within our 5km delivery radius of Kalyanpur, Kanpur.</string>
 </dict>
 </plist>

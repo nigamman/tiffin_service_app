@@ -97,7 +97,7 @@ class FrequencySelectionStep extends StatelessWidget {
         final bool isLunchSelected = state.deliverySlot == 'lunch' || state.deliverySlot == 'both';
         final bool isDinnerSelected = state.deliverySlot == 'dinner' || state.deliverySlot == 'both';
         final double slotMultiplier = state.deliverySlot == 'both' ? 2.0 : 1.0;
-        final int weeksMultiplier = currentTab == 'weekly' ? 2 : 1;
+        final int weeksMultiplier = 1;
 
         // Calculate checkout total and savings
         double currentPlanDays = 5.0;
@@ -178,46 +178,48 @@ class FrequencySelectionStep extends StatelessWidget {
                       },
                     ),
 
-                    const SizedBox(height: 32),
+                    if (currentTab != 'one-time') ...[
+                      const SizedBox(height: 32),
 
-                    // 3. Customize Slots Section
-                    Text(
-                      "Customize Slots",
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textDark,
+                      // 3. Customize Slots Section
+                      Text(
+                        "Customize Slots",
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFEDE8E0), width: 1),
+                      const SizedBox(height: 12),
+                      
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFEDE8E0), width: 1),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildSlotCheckbox(
+                              title: "Lunch (11:30 AM - 1:30 PM)",
+                              isSelected: isLunchSelected,
+                              onChanged: (val) {
+                                _updateSlots(context, val ?? false, isDinnerSelected);
+                              },
+                            ),
+                            const Divider(color: Color(0xFFEDE8E0), height: 1),
+                            _buildSlotCheckbox(
+                              title: "Dinner (7:00 PM - 9:00 PM)",
+                              isSelected: isDinnerSelected,
+                              onChanged: (val) {
+                                _updateSlots(context, isLunchSelected, val ?? false);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          _buildSlotCheckbox(
-                            title: "Lunch (11:30 AM - 1:30 PM)",
-                            isSelected: isLunchSelected,
-                            onChanged: (val) {
-                              _updateSlots(context, val ?? false, isDinnerSelected);
-                            },
-                          ),
-                          const Divider(color: Color(0xFFEDE8E0), height: 1),
-                          _buildSlotCheckbox(
-                            title: "Dinner (7:00 PM - 9:00 PM)",
-                            isSelected: isDinnerSelected,
-                            onChanged: (val) {
-                              _updateSlots(context, isLunchSelected, val ?? false);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -299,19 +301,22 @@ class FrequencySelectionStep extends StatelessWidget {
                         ),
                         elevation: 0,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Continue to Checkout",
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Continue to Checkout",
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward, size: 16),
-                        ],
+                            const SizedBox(width: 8),
+                            const Icon(Icons.arrow_forward, size: 16),
+                          ],
+                        ),
                       ),
                     ),
                   ),

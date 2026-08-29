@@ -20,6 +20,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  Timer? _countdownTimer;
+
   @override
   void initState() {
     super.initState();
@@ -28,6 +30,44 @@ class _HomeScreenState extends State<HomeScreen> {
     final authState = context.read<AuthCubit>().state;
     if (authState is AuthAuthenticated) {
       context.read<OrdersCubit>().loadOrders();
+    }
+    
+    // Start periodic countdown timer (rebuilds every minute to update remaining times)
+    _countdownTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  String _getCutoffCountdown(bool isLunch) {
+    final now = DateTime.now();
+    
+    // Lunch cutoff: 9:30 AM today
+    // Dinner cutoff: 5:00 PM today
+    final int cutoffHour = isLunch ? 9 : 17;
+    final int cutoffMinute = isLunch ? 30 : 0;
+    
+    final cutoffTime = DateTime(now.year, now.month, now.day, cutoffHour, cutoffMinute);
+    
+    if (now.isAfter(cutoffTime)) {
+      return "Closed for Today";
+    }
+    
+    final difference = cutoffTime.difference(now);
+    final hours = difference.inHours;
+    final minutes = difference.inMinutes % 60;
+    
+    if (hours > 0) {
+      return "Closes in ${hours}h ${minutes}m";
+    } else {
+      return "Closes in ${minutes}m";
     }
   }
 
@@ -324,15 +364,45 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            time,
-            style: GoogleFonts.poppins(
-              fontSize: 10,
-              color: AppTheme.textMuted,
-              fontWeight: FontWeight.w600,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              time,
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                color: AppTheme.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          Builder(
+            builder: (context) {
+              final countdownText = _getCutoffCountdown(isLunch);
+              final isClosed = countdownText == "Closed for Today";
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isClosed 
+                      ? AppTheme.errorColor.withOpacity(0.08) 
+                      : AppTheme.primaryGreen.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    countdownText,
+                    style: GoogleFonts.poppins(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: isClosed ? AppTheme.errorColor : AppTheme.primaryGreen,
+                    ),
+                  ),
+                ),
+              );
+            }
+          ),
+          const SizedBox(height: 12),
           
           // Order Now button
           SizedBox(
