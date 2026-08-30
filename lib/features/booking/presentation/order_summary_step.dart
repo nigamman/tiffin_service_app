@@ -211,7 +211,7 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
                     const SizedBox(width: 12),
                     SizedBox(
                       height: 52,
-                      width: 100,
+                      width: 110,
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: state.appliedCoupon != null
@@ -226,6 +226,7 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
                         onPressed: () {
                           if (state.appliedCoupon != null) {
@@ -286,6 +287,11 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
                   icon: Icons.payment,
                   isLoading: state.isLoading,
                   onPressed: () => context.read<BookingCubit>().checkout(),
+                ),
+                SizedBox(
+                  height: MediaQuery.of(context).padding.bottom > 0
+                      ? MediaQuery.of(context).padding.bottom + 8
+                      : 16,
                 ),
               ],
             ),

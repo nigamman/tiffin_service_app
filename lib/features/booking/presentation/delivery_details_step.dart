@@ -110,6 +110,7 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
 
       _gpsDistance = distance;
 
+      String detectedHouseNo = "";
       String detectedArea = "";
       String detectedLandmark = "";
 
@@ -122,7 +123,19 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
         if (placemarks.isNotEmpty) {
           final placemark = placemarks.first;
           
+          // 1. House / Flat No. (Use place.name if it represents a short number/code and not the area name)
+          if (placemark.name != null && 
+              placemark.name!.isNotEmpty && 
+              placemark.name != placemark.subLocality && 
+              placemark.name != placemark.locality) {
+            detectedHouseNo = placemark.name!;
+          }
+
+          // 2. Area / Locality / Street
           final List<String> addressParts = [];
+          if (placemark.thoroughfare != null && placemark.thoroughfare!.isNotEmpty && placemark.thoroughfare != placemark.name) {
+            addressParts.add(placemark.thoroughfare!);
+          }
           if (placemark.subLocality != null && placemark.subLocality!.isNotEmpty) {
             addressParts.add(placemark.subLocality!);
           }
@@ -130,26 +143,16 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
             addressParts.add(placemark.locality!);
           }
           detectedArea = addressParts.isEmpty ? "Kalyanpur, Kanpur" : addressParts.join(", ");
-
-          final List<String> landmarkParts = [];
-          if (placemark.name != null && placemark.name!.isNotEmpty && placemark.name != placemark.street && placemark.name != placemark.subLocality) {
-            landmarkParts.add(placemark.name!);
-          }
-          if (placemark.street != null && placemark.street!.isNotEmpty) {
-            landmarkParts.add(placemark.street!);
-          }
-          if (placemark.postalCode != null && placemark.postalCode!.isNotEmpty) {
-            landmarkParts.add(placemark.postalCode!);
-          }
-          detectedLandmark = landmarkParts.isEmpty ? "Kalyanpur" : landmarkParts.join(", ");
+          
+          // Landmark is kept empty by default so the user can enter a custom point of reference (e.g. Near Temple).
         }
       } catch (_) {
         detectedArea = "Kalyanpur, Kanpur";
-        detectedLandmark = "GPS: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
       }
 
       if (distance <= 5.0) {
         setState(() {
+          _houseNoController.text = detectedHouseNo;
           _areaController.text = detectedArea;
           _landmarkController.text = detectedLandmark;
         });
@@ -494,11 +497,15 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
                 return null;
               },
             ),
-            const SizedBox(height: 36),
-
+            const SizedBox(height: 24),
             CustomButton(
               text: "Continue to Summary",
               onPressed: _submit,
+            ),
+            SizedBox(
+              height: MediaQuery.of(context).padding.bottom > 0
+                  ? MediaQuery.of(context).padding.bottom + 8
+                  : 16,
             ),
           ],
         ),

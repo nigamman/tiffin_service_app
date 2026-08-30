@@ -97,73 +97,14 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         itemBuilder: (context, index) {
           final order = activeOrders[index];
           
-          final slotMultiplier = order.deliverySlot == 'both' ? 2 : 1;
-          final int weeksMultiplier = 1;
-          final totalMeals = order.mealsCount * slotMultiplier * weeksMultiplier;
-          
           final now = DateTime.now();
           final todayNormalized = DateTime(now.year, now.month, now.day);
           final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
           
-          int deliveredMeals = 0;
-          if (!todayNormalized.isBefore(startNormalized)) {
-            int totalElapsedSlots = 0;
-            final currentHour = now.hour;
-            final currentMinute = now.minute;
-            final currentFloatTime = currentHour + (currentMinute / 60.0);
-
-            for (int i = 0; i <= todayNormalized.difference(startNormalized).inDays; i++) {
-              final checkDate = startNormalized.add(Duration(days: i));
-              if (_isDeliveryDay(checkDate, order.frequency)) {
-                if (checkDate.isBefore(todayNormalized)) {
-                  // Past day: all slots elapsed
-                  totalElapsedSlots += (order.deliverySlot == 'both' ? 2 : 1);
-                } else if (checkDate.isAtSameMomentAs(todayNormalized)) {
-                  // Today: check which slots have actually finished delivery window
-                  if (order.deliverySlot == 'lunch') {
-                    if (currentFloatTime >= 13.5) { // Lunch ends at 1:30 PM (13.5)
-                      totalElapsedSlots += 1;
-                    }
-                  } else if (order.deliverySlot == 'dinner') {
-                    if (currentFloatTime >= 21.0) { // Dinner ends at 9:00 PM (21.0)
-                      totalElapsedSlots += 1;
-                    }
-                  } else if (order.deliverySlot == 'both') {
-                    if (currentFloatTime >= 21.0) {
-                      totalElapsedSlots += 2; // both lunch and dinner ended
-                    } else if (currentFloatTime >= 13.5) {
-                      totalElapsedSlots += 1; // only lunch ended
-                    }
-                  }
-                }
-              }
-            }
-
-            final multiplier = order.deliverySlot == 'both' ? 2 : 1;
-            
-            final elapsedFullDaySkips = order.skippedDates
-                .where((d) => !d.isAfter(todayNormalized))
-                .length * multiplier;
-                
-            int elapsedSlotSkips = 0;
-            for (final slotKey in order.skippedSlots) {
-              try {
-                final dateStr = slotKey.split('_')[0];
-                final slotDate = DateTime.parse(dateStr);
-                if (!slotDate.isAfter(todayNormalized)) {
-                  elapsedSlotSkips++;
-                }
-              } catch (_) {}
-            }
-            
-            final totalSkips = elapsedFullDaySkips + elapsedSlotSkips;
-            deliveredMeals = (totalElapsedSlots - totalSkips).clamp(0, totalMeals);
-          }
-          
-          final remainingMeals = (totalMeals - deliveredMeals).clamp(0, totalMeals);
-
-          // Calculate percentage for thin progress indicator
-          final double progressPercent = totalMeals > 0 ? remainingMeals / totalMeals : 0;
+          final totalMeals = order.totalMeals;
+          final deliveredMeals = order.deliveredMeals;
+          final remainingMeals = order.remainingMeals;
+          final double progressPercent = order.progressPercent;
 
           // Determine the cutoff time for today's delivery (2 hours before delivery slot)
           int cutoffHour = 9; // 9:30 AM

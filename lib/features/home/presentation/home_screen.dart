@@ -3,12 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/services/firebase_service.dart';
 import 'menu_cubit.dart';
 import '../data/menu_repository.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../tiffin_details/presentation/tiffin_details_screen.dart';
 import '../../booking/presentation/booking_flow_screen.dart';
 import '../../orders/presentation/orders_cubit.dart';
+import '../../orders/presentation/subscription_details_screen.dart';
 import '../../admin/presentation/admin_dashboard_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -127,6 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
         final bool isAdmin = authState is AuthAuthenticated && authState.user.isAdmin;
+        final String? userPhone = authState is AuthAuthenticated ? authState.user.phone : null;
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -144,7 +148,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Actions on the right (Admin Dashboard & Notifications)
             Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 if (isAdmin) ...[
                   GestureDetector(
@@ -178,40 +181,60 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 12),
                 ],
-                Stack(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                GestureDetector(
+                  onTap: () => _showNotificationsSheet(context),
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('notifications').snapshots(),
+                    builder: (context, snapshot) {
+                      bool showBadge = false;
+                      if (snapshot.hasData) {
+                        final count = snapshot.data!.docs.where((doc) {
+                          final target = doc.data() is Map && (doc.data() as Map).containsKey('target')
+                              ? doc.get('target')
+                              : 'all';
+                          return target == 'all' || (userPhone != null && target == userPhone);
+                        }).length;
+                        showBadge = count > 0;
+                      }
+
+                      return Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.notifications_none,
+                              color: Color(0xFF222222),
+                              size: 20,
+                            ),
                           ),
+                          if (showBadge)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFD3B16A), // Premium Gold
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
                         ],
-                      ),
-                      child: const Icon(
-                        Icons.notifications_none,
-                        color: Color(0xFF222222),
-                        size: 20,
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFD3B16A), // Premium Gold
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -482,96 +505,107 @@ class _HomeScreenState extends State<HomeScreen> {
                     final String freq = activeOrder.frequency[0].toUpperCase() + activeOrder.frequency.substring(1);
                     final String slotText = activeOrder.deliverySlot == 'both' ? 'Lunch & Dinner' : (activeOrder.deliverySlot == 'lunch' ? 'Lunch Only' : 'Dinner Only');
                   
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SubscriptionDetailsScreen(order: activeOrder),
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        // Plan Icon matching design
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF0F3A20),
-                            shape: BoxShape.circle,
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
-                          child: const Icon(
-                            Icons.calendar_today_outlined,
-                            color: Color(0xFFC3A575),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // Plan Icon matching design
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF0F3A20),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.calendar_today_outlined,
+                              color: Color(0xFFC3A575),
+                              size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "$freq Plan",
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.textDark,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          "Active",
+                                          style: TextStyle(
+                                            color: Colors.green.shade700,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    "$freq Plan",
+                                    "$slotText • ${activeOrder.mealsCount} Days",
                                     style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.textDark,
+                                      fontSize: 12,
+                                      color: AppTheme.textMuted,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      "Active",
-                                      style: TextStyle(
-                                        color: Colors.green.shade700,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "Next Delivery: Today, ${activeOrder.deliverySlot == 'dinner' ? 'Dinner' : 'Lunch'}",
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      color: const Color(0xFFC3A575),
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "$slotText • ${activeOrder.mealsCount} Days",
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: AppTheme.textMuted,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Next Delivery: Today, ${activeOrder.deliverySlot == 'dinner' ? 'Dinner' : 'Lunch'}",
-                                style: GoogleFonts.poppins(
-                                  fontSize: 10,
-                                  color: const Color(0xFFC3A575),
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: AppTheme.textMuted,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: AppTheme.textMuted,
-                        ),
-                      ],
-                    ),
-                  );
+                      ),
+                    );
                 }
               }
 
@@ -705,6 +739,189 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showNotificationsSheet(BuildContext context) async {
+    final authState = context.read<AuthCubit>().state;
+    final String? userPhone = authState is AuthAuthenticated ? authState.user.phone : null;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (context, scrollController) {
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              future: FirebaseService.instance.collectionGet('notifications').then((list) {
+                // Filter notifications
+                final filtered = list.where((n) {
+                  final target = n['target'] ?? 'all';
+                  return target == 'all' || (userPhone != null && target == userPhone);
+                }).toList();
+                
+                // Sort by createdAt descending
+                filtered.sort((a, b) {
+                  final aTime = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime.now();
+                  final bTime = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime.now();
+                  return bTime.compareTo(aTime);
+                });
+                return filtered;
+              }),
+              builder: (context, snapshot) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppTheme.borderLight,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Announcements & Alerts",
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                          const Icon(Icons.notifications_active, color: AppTheme.secondaryMarigold),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: _buildNotificationsList(snapshot, scrollController),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationsList(
+    AsyncSnapshot<List<Map<String, dynamic>>> snapshot,
+    ScrollController scrollController,
+  ) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
+    }
+    
+    if (snapshot.hasError) {
+      return Center(child: Text("Error: ${snapshot.error}"));
+    }
+    
+    final notifications = snapshot.data ?? [];
+    
+    if (notifications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withOpacity(0.06),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_off_outlined,
+                size: 48,
+                color: AppTheme.primaryGreen,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "No Alerts Yet",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "You will see special updates and tiffin delivery notifications here.",
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      controller: scrollController,
+      itemCount: notifications.length,
+      itemBuilder: (context, index) {
+        final item = notifications[index];
+        final title = item['title'] ?? 'Alert';
+        final message = item['message'] ?? '';
+        
+        final timeRaw = item['createdAt'] ?? '';
+        String timeFormatted = '';
+        try {
+          final timeParsed = DateTime.parse(timeRaw);
+          timeFormatted = DateFormat('dd MMM, hh:mm a').format(timeParsed);
+        } catch (_) {}
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.campaign, color: AppTheme.primaryGreen),
+            ),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textDark),
+                  ),
+                ),
+                Text(
+                  timeFormatted,
+                  style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                ),
+              ],
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 12, color: AppTheme.textDark),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

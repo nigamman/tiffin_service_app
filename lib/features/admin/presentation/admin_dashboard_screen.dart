@@ -3,6 +3,8 @@ import '../data/admin_repository.dart';
 import 'admin_menu_management.dart';
 import 'admin_coupon_management.dart';
 import 'admin_order_list.dart';
+import 'admin_subscription_list_screen.dart';
+import 'admin_notification_screen.dart';
 import '../../../core/theme/app_theme.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -108,12 +110,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             icon: Icons.currency_rupee,
                             color: AppTheme.secondaryMarigold,
                           ),
-                          _buildMetricCard(
-                            context,
-                            title: "Active Plans",
-                            value: "${_analytics?.activeSubscribersCount}",
-                            icon: Icons.repeat,
-                            color: Colors.teal,
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const AdminSubscriptionListScreen()),
+                              ).then((_) => _loadAnalytics());
+                            },
+                            child: _buildMetricCard(
+                              context,
+                              title: "Active Plans",
+                              value: "${_analytics?.activeSubscribersCount}",
+                              icon: Icons.repeat,
+                              color: Colors.teal,
+                            ),
                           ),
                           _buildMetricCard(
                             context,
@@ -152,6 +162,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         subtitle: "Track, skip, or modify active subscriptions",
                         icon: Icons.list_alt,
                         destination: const AdminOrderList(),
+                      ),
+                      _buildQuickActionTile(
+                        context,
+                        title: "Active Subscriptions",
+                        subtitle: "Track tiffin consumption (got/left) per subscriber",
+                        icon: Icons.people_outline,
+                        destination: const AdminSubscriptionListScreen(),
+                      ),
+                      _buildQuickActionTile(
+                        context,
+                        title: "Send Custom Notifications",
+                        subtitle: "Broadcast alerts or message specific customers",
+                        icon: Icons.campaign_outlined,
+                        destination: const AdminNotificationScreen(),
                       ),
                       const SizedBox(height: 32),
 

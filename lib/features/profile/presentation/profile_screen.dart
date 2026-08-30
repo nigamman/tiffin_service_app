@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../auth/presentation/auth_cubit.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
@@ -13,8 +16,59 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Toggle status state
-  bool _useMockMode = ApiConstants.useMockApi;
+  // Local cache to preserve UI during Bloc Loading state transitions
+  UserProfile? _user;
+
+  Future<void> _detectLocation(
+    TextEditingController houseController,
+    TextEditingController areaController,
+    TextEditingController landmarkController,
+  ) async {
+    // 1. Check services
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception("Location services are disabled. Please enable GPS.");
+    }
+
+    // 2. Check permission
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception("Location permission was denied.");
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception("Location permissions are permanently denied. Please enable them in app settings.");
+    }
+
+    // 3. Get coordinates
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    // 4. Reverse geocode
+    List<Placemark> placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+
+    if (placemarks.isNotEmpty) {
+      Placemark place = placemarks.first;
+      
+      // Parse details
+      final house = "${place.subThoroughfare ?? ''} ${place.thoroughfare ?? ''}".trim();
+      final area = "${place.subLocality ?? ''} ${place.locality ?? ''}".trim();
+      final landmark = "${place.name ?? ''} ${place.postalCode ?? ''}".trim();
+
+      houseController.text = house.isNotEmpty ? house : "Plot/House detected";
+      areaController.text = area.isNotEmpty ? area : "Locality detected";
+      landmarkController.text = landmark;
+    } else {
+      throw Exception("No address details found for your coordinates.");
+    }
+  }
 
   void _showEditAddressSheet() {
     final authState = context.read<AuthCubit>().state;
@@ -33,27 +87,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            top: 20,
-            left: 20,
-            right: 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Edit Profile Details",
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 16),
+        bool isDetecting = false;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 20,
+                left: 20,
+                right: 20,
+              ),
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Edit Profile Details",
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        TextButton.icon(
+                          onPressed: isDetecting
+                              ? null
+                              : () async {
+                                  setModalState(() => isDetecting = true);
+                                  try {
+                                    await _detectLocation(
+                                      houseController,
+                                      areaController,
+                                      landmarkController,
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text("Could not retrieve location: $e"),
+                                        backgroundColor: AppTheme.errorColor,
+                                      ),
+                                    );
+                                  } finally {
+                                    setModalState(() => isDetecting = false);
+                                  }
+                                },
+                          icon: isDetecting
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation(AppTheme.primaryGreen),
+                                  ),
+                                )
+                              : const Icon(Icons.my_location, size: 16),
+                          label: Text(
+                            isDetecting ? "Detecting..." : "Locate Me",
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                 
                 // Name
                 TextFormField(
@@ -107,6 +207,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
+          ),
+            );
+          },
         );
       },
     );
@@ -123,186 +226,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {
-          if (state is! AuthAuthenticated) {
-            return const SizedBox();
+          if (state is AuthAuthenticated) {
+            _user = state.user;
+          }
+          
+          if (_user == null) {
+            return const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
           }
 
-          final user = state.user;
+          final user = _user!;
           final hasAddress = user.houseNo.isNotEmpty && user.area.isNotEmpty;
+          final isLoading = state is AuthLoading;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile Card Header
-                Row(
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 36,
-                      backgroundColor: AppTheme.primaryGreen.withOpacity(0.08),
-                      child: Text(
-                        user.name.isNotEmpty ? user.name[0].toUpperCase() : 'C',
-                        style: const TextStyle(
-                          color: AppTheme.primaryGreen,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                    // Profile Card Header
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 36,
+                          backgroundColor: AppTheme.primaryGreen.withOpacity(0.08),
+                          child: Text(
+                            user.name.isNotEmpty ? user.name[0].toUpperCase() : 'C',
+                            style: const TextStyle(
+                              color: AppTheme.primaryGreen,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.name,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "+91 ${user.phone}",
-                            style: const TextStyle(color: AppTheme.textMuted, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // Address Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Delivery Address",
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                    ),
-                    TextButton.icon(
-                      style: TextButton.styleFrom(foregroundColor: AppTheme.primaryGreen),
-                      icon: const Icon(Icons.edit, size: 16),
-                      label: Text(hasAddress ? "Edit" : "Add"),
-                      onPressed: _showEditAddressSheet,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.borderLight),
-                  ),
-                  child: hasAddress
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user.houseNo,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "${user.area}, Kanpur",
-                              style: const TextStyle(color: AppTheme.textDark),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "Landmark: ${user.landmark}",
-                              style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                            ),
-                          ],
-                        )
-                      : const Text(
-                          "No address configured yet. Tap Edit/Add to set delivery location.",
-                          style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                        ),
-                ),
-                const SizedBox(height: 32),
-
-                // App settings / Developer Options
-                Text(
-                  "Developer Console",
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppTheme.secondaryMarigold,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.borderLight),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Emulated Firestore Mode",
-                            style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark, fontSize: 14),
-                          ),
-                          Text(
-                            "Uses emulated Cloud Firestore collections",
-                            style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                      Switch(
-                        value: _useMockMode,
-                        activeColor: AppTheme.primaryGreen,
-                        onChanged: (val) {
-                          if (val == false) {
-                            // Inform user that actual Firebase linking is required
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("To use live database, install Firebase packages and run 'flutterfire configure'."),
-                                duration: Duration(seconds: 4),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.name,
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                               ),
-                            );
-                            setState(() {
-                              _useMockMode = true; // Force it back to true since packages aren't imported yet
-                            });
-                          } else {
-                            setState(() {
-                              _useMockMode = true;
-                              ApiConstants.useMockApi = true;
-                            });
-                          }
-                        },
+                              const SizedBox(height: 4),
+                              Text(
+                                "+91 ${user.phone}",
+                                style: const TextStyle(color: AppTheme.textMuted, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Address Section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Delivery Address",
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                        ),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(foregroundColor: AppTheme.primaryGreen),
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: Text(hasAddress ? "Edit" : "Add"),
+                          onPressed: _showEditAddressSheet,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.borderLight),
                       ),
-                    ],
+                      child: hasAddress
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.houseNo,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${user.area}, Kanpur",
+                                  style: const TextStyle(color: AppTheme.textDark),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Landmark: ${user.landmark}",
+                                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                                ),
+                              ],
+                            )
+                          : const Text(
+                              "No address configured yet. Tap Edit/Add to set delivery location.",
+                              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                            ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Log out
+                    CustomButton(
+                      text: "Log Out",
+                      isSecondary: true,
+                      icon: Icons.logout,
+                      onPressed: () {
+                        context.read<AuthCubit>().logout();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Logged out successfully")),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              if (isLoading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.12),
+                    child: const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 48),
-
-                // Log out
-                CustomButton(
-                  text: "Log Out",
-                  isSecondary: true,
-                  icon: Icons.logout,
-                  onPressed: () {
-                    context.read<AuthCubit>().logout();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Logged out successfully")),
-                    );
-                  },
-                ),
-              ],
-            ),
+            ],
           );
         },
       ),

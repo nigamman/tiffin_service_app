@@ -97,60 +97,57 @@ class BookingFlowScreen extends StatelessWidget {
                   },
                 ),
               ),
-              body: SafeArea(
-                top: false,
-                bottom: true,
-                child: Column(
-                  children: [
-                    // Premium Stories-style Step Indicator Bar
-                    Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.only(left: 24, right: 24, top: 8, bottom: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Thin Segment Bars
-                          Row(
-                            children: List.generate(steps.length, (index) {
-                              final isCompleted = index < state.step;
-                              final isActive = index == state.step;
-                              
-                              return Expanded(
-                                child: Container(
-                                  height: 4,
-                                  margin: EdgeInsets.only(
-                                    right: index < steps.length - 1 ? 6.0 : 0.0,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isActive || isCompleted
-                                        ? AppTheme.primaryGreen
-                                        : AppTheme.borderLight,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
+              body: Column(
+                children: [
+                  // Premium Stories-style Step Indicator Bar
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.only(left: 24, right: 24, top: 8, bottom: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Thin Segment Bars
+                        Row(
+                          children: List.generate(steps.length, (index) {
+                            final isCompleted = index < state.step;
+                            final isActive = index == state.step;
+                            
+                            return Expanded(
+                              child: Container(
+                                height: 4,
+                                margin: EdgeInsets.only(
+                                  right: index < steps.length - 1 ? 6.0 : 0.0,
                                 ),
-                              );
-                            }),
-                          ),
-                          const SizedBox(height: 12),
-                          
-                          // Editorial text indicator
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "STEP ${state.step + 1} OF 3",
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.secondaryMarigold,
-                                  letterSpacing: 1.5,
+                                decoration: BoxDecoration(
+                                  color: isActive || isCompleted
+                                      ? AppTheme.primaryGreen
+                                      : AppTheme.borderLight,
+                                  borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
-                              Text(
-                                state.step < steps.length - 1 
-                                    ? "Next: ${stepTitles[state.step + 1]}"
-                                    : "Final Step",
-                                style: const TextStyle(
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Editorial text indicator
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "STEP ${state.step + 1} OF 3",
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.secondaryMarigold,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                            Text(
+                              state.step < steps.length - 1 
+                                  ? "Next: ${stepTitles[state.step + 1]}"
+                                  : "Final Step",
+                              style: const TextStyle(
                                   fontSize: 11,
                                   color: AppTheme.textMuted,
                                 ),
@@ -167,11 +164,10 @@ class BookingFlowScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
-      ),
-    );
+      );
   }
 }

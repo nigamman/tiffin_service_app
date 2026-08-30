@@ -225,9 +225,15 @@ class FrequencySelectionStep extends StatelessWidget {
               ),
             ),
 
-            // 4. Sticky Bottom Summary & Checkout Row
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: MediaQuery.of(context).padding.bottom > 0
+                    ? MediaQuery.of(context).padding.bottom + 12
+                    : 24,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../auth/presentation/auth_cubit.dart';
@@ -6,6 +7,7 @@ import 'home_screen.dart';
 import '../../orders/presentation/my_orders_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/notification_service.dart';
 
 class MainLayout extends StatefulWidget {
   final int initialIndex;
@@ -18,11 +20,46 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   late int _currentIndex;
+  StreamSubscription? _authSubscription;
+  NotificationService? _notificationService;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    
+    // Initialize notification service
+    _notificationService = NotificationService(context);
+    
+    // Listen to auth cubit to bind user phone for order notifications
+    _authSubscription = context.read<AuthCubit>().stream.listen((state) {
+      if (state is AuthAuthenticated) {
+        _notificationService?.startListeningToOrders(state.user.phone);
+        _notificationService?.startListeningToCustomNotifications(state.user.phone);
+      } else {
+        _notificationService?.stopListeningToOrders();
+        _notificationService?.startListeningToCustomNotifications(null);
+      }
+    });
+
+    // If already authenticated at startup:
+    final authState = context.read<AuthCubit>().state;
+    String? userPhone;
+    if (authState is AuthAuthenticated) {
+      userPhone = authState.user.phone;
+      _notificationService?.startListeningToOrders(userPhone);
+    }
+    _notificationService?.startListeningToCustomNotifications(userPhone);
+    
+    // Start listening to new coupons (available for all users, logged in or not)
+    _notificationService?.startListeningToCoupons();
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    _notificationService?.dispose();
+    super.dispose();
   }
 
 

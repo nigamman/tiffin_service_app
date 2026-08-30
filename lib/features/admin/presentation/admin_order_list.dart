@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../data/admin_repository.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../../core/theme/app_theme.dart';
@@ -83,6 +84,95 @@ class _AdminOrderListState extends State<AdminOrderList> {
         }
       }
     }
+  }
+
+  void _updateTodayStatus(String orderId, String status) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await _ordersRepository.adminUpdateTodayDeliveryStatus(orderId, status, todayStr);
+      await _loadOrders();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Today's delivery status updated to: ${status.toUpperCase().replaceAll('_', ' ')}"),
+            backgroundColor: AppTheme.primaryGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to update status: $e"),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _updateOutForDelivery() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await _ordersRepository.adminUpdateAllTodayDeliveryStatus('out_for_delivery', todayStr);
+      await _loadOrders();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("All today's active deliveries marked as OUT FOR DELIVERY"),
+            backgroundColor: AppTheme.primaryGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to update status: $e"),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildStatusButton(
+    BuildContext context, {
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    Color activeColor = AppTheme.primaryGreen;
+    if (label == 'Delivered') activeColor = AppTheme.successColor;
+    if (label == 'Out for Delivery') activeColor = AppTheme.secondaryMarigold;
+
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        foregroundColor: isSelected ? Colors.white : activeColor,
+        backgroundColor: isSelected ? activeColor : Colors.white,
+        elevation: isSelected ? 2 : 0,
+        side: BorderSide(color: activeColor, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+      ),
+      onPressed: onTap,
+      child: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+      ),
+    );
   }
 
   @override
@@ -217,6 +307,69 @@ class _AdminOrderListState extends State<AdminOrderList> {
                                       Text("Deliver Phone: +91 ${order.contactPhone}", style: const TextStyle(fontSize: 13)),
                                       Text("Start date: $startDateFormatted • Slot: ${order.deliverySlot.toUpperCase()}", style: const TextStyle(fontSize: 13)),
                                       Text("Skips: ${order.skippedDates.length} meals skipped", style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+                                      if (order.frequency != 'one-time') ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "Tiffins: ${order.deliveredMeals} Got • ${order.remainingMeals} Left (of ${order.totalMeals} total)",
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                                        ),
+                                      ],
+                                      if (order.isScheduledToday) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            const Text("Today's Tiffin: ", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                                            Text(
+                                              order.todayStatusLabel,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: order.todayActiveStage == 3
+                                                    ? AppTheme.successColor
+                                                    : (order.todayActiveStage == 2
+                                                        ? AppTheme.secondaryMarigold
+                                                        : (order.todayActiveStage == 1
+                                                            ? Colors.orange
+                                                            : AppTheme.textDark)),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      // Today's delivery status management card
+                                      if (order.orderStatus != 'cancelled' && order.isScheduledToday) ...[
+                                        const Divider(height: 20, color: AppTheme.borderLight),
+                                        Text(
+                                          "Manage Today's Food Delivery",
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: AppTheme.primaryGreen,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildStatusButton(
+                                                context,
+                                                label: 'Out for Delivery',
+                                                isSelected: order.todayDeliveryStatusDate == DateFormat('yyyy-MM-dd').format(DateTime.now()) && order.todayDeliveryStatus == 'out_for_delivery',
+                                                onTap: () => _updateOutForDelivery(),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: _buildStatusButton(
+                                                context,
+                                                label: 'Delivered',
+                                                isSelected: order.todayDeliveryStatusDate == DateFormat('yyyy-MM-dd').format(DateTime.now()) && order.todayDeliveryStatus == 'delivered',
+                                                onTap: () => _updateTodayStatus(order.id, 'delivered'),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                       const Divider(height: 20, color: AppTheme.borderLight),
                                       
                                       // Cancel action button

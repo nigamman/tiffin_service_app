@@ -88,26 +88,31 @@ class _AdminCouponManagementState extends State<AdminCouponManagement> {
                     const SizedBox(height: 12),
 
                     // Discount Type Selector
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text("Discount Type:", style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
-                            ChoiceChip(
-                              label: const Text("Fixed Amount (₹)"),
-                              selected: discountType == 'fixed',
-                              onSelected: (selected) {
-                                if (selected) setModalState(() => discountType = 'fixed');
-                              },
+                            Expanded(
+                              child: ChoiceChip(
+                                label: const Center(child: Text("Fixed Amount (₹)")),
+                                selected: discountType == 'fixed',
+                                onSelected: (selected) {
+                                  if (selected) setModalState(() => discountType = 'fixed');
+                                },
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            ChoiceChip(
-                              label: const Text("Percentage (%)"),
-                              selected: discountType == 'percent',
-                              onSelected: (selected) {
-                                if (selected) setModalState(() => discountType = 'percent');
-                              },
+                            Expanded(
+                              child: ChoiceChip(
+                                label: const Center(child: Text("Percentage (%)")),
+                                selected: discountType == 'percent',
+                                onSelected: (selected) {
+                                  if (selected) setModalState(() => discountType = 'percent');
+                                },
+                              ),
                             ),
                           ],
                         ),

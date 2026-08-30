@@ -83,69 +83,11 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
   Widget _buildContent(BuildContext context, OrderModel order) {
     final now = DateTime.now();
     final todayNormalized = DateTime(now.year, now.month, now.day);
-    final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
 
-    // Dynamic remaining meals calculation
-    int deliveredMeals = 0;
-    final slotMultiplier = order.deliverySlot == 'both' ? 2 : 1;
-    final int weeksMultiplier = 1;
-    final totalMeals = order.mealsCount * slotMultiplier * weeksMultiplier;
-      if (!todayNormalized.isBefore(startNormalized)) {
-        int totalElapsedSlots = 0;
-        final currentHour = now.hour;
-        final currentMinute = now.minute;
-        final currentFloatTime = currentHour + (currentMinute / 60.0);
-
-        for (int i = 0; i <= todayNormalized.difference(startNormalized).inDays; i++) {
-          final checkDate = startNormalized.add(Duration(days: i));
-          if (_isDeliveryDay(checkDate, order.frequency)) {
-            if (checkDate.isBefore(todayNormalized)) {
-              // Past day: all slots elapsed
-              totalElapsedSlots += (order.deliverySlot == 'both' ? 2 : 1);
-            } else if (checkDate.isAtSameMomentAs(todayNormalized)) {
-              // Today: check which slots have actually finished delivery window
-              if (order.deliverySlot == 'lunch') {
-                if (currentFloatTime >= 13.5) { // Lunch ends at 1:30 PM (13.5)
-                  totalElapsedSlots += 1;
-                }
-              } else if (order.deliverySlot == 'dinner') {
-                if (currentFloatTime >= 21.0) { // Dinner ends at 9:00 PM (21.0)
-                  totalElapsedSlots += 1;
-                }
-              } else if (order.deliverySlot == 'both') {
-                if (currentFloatTime >= 21.0) {
-                  totalElapsedSlots += 2; // both lunch and dinner ended
-                } else if (currentFloatTime >= 13.5) {
-                  totalElapsedSlots += 1; // only lunch ended
-                }
-              }
-            }
-          }
-        }
-
-        final multiplier = order.deliverySlot == 'both' ? 2 : 1;
-        
-        final elapsedFullDaySkips = order.skippedDates
-            .where((d) => !d.isAfter(todayNormalized))
-            .length * multiplier;
-            
-        int elapsedSlotSkips = 0;
-        for (final slotKey in order.skippedSlots) {
-          try {
-            final dateStr = slotKey.split('_')[0];
-            final slotDate = DateTime.parse(dateStr);
-            if (!slotDate.isAfter(todayNormalized)) {
-              elapsedSlotSkips++;
-            }
-          } catch (_) {}
-        }
-        
-        final totalSkips = elapsedFullDaySkips + elapsedSlotSkips;
-        deliveredMeals = (totalElapsedSlots - totalSkips).clamp(0, totalMeals);
-      }
-
-    final remainingMeals = (totalMeals - deliveredMeals).clamp(0, totalMeals);
-    final double progressPercent = totalMeals > 0 ? remainingMeals / totalMeals : 0;
+    final totalMeals = order.totalMeals;
+    final deliveredMeals = order.deliveredMeals;
+    final remainingMeals = order.remainingMeals;
+    final double progressPercent = order.progressPercent;
 
     // Count skipped slots in these 7 days
     int skipCount = 0;
@@ -174,10 +116,11 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
           // 1. Subscription Info Overview Card
           _buildPlanOverviewCard(context, order, remainingMeals, totalMeals, progressPercent),
 
-          // 2. Schedule or One-time Details
-          if (isOneTime)
-            _buildOneTimeDeliveryStatusCard(order)
-          else ...[
+          // 2. Live Food Delivery Tracker (If scheduled today!)
+          if (_isDeliveryScheduledToday(order))
+            _buildOneTimeDeliveryStatusCard(order),
+
+          if (!isOneTime) ...[
             // 2. Next 7 Days Delivery Schedule
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -719,6 +662,35 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     );
   }
 
+  // Helper to check if today is a scheduled delivery day for this order plan
+  bool _isDeliveryScheduledToday(OrderModel order) {
+    if (order.orderStatus == 'cancelled') return false;
+    final now = DateTime.now();
+    final todayNormalized = DateTime(now.year, now.month, now.day);
+    final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
+
+    if (todayNormalized.isBefore(startNormalized)) return false;
+
+    // Check skipped dates
+    final isSkipped = order.skippedDates.any((d) =>
+      DateTime(d.year, d.month, d.day).isAtSameMomentAs(todayNormalized)
+    );
+    if (isSkipped) return false;
+
+    if (order.frequency == 'one-time') {
+      return startNormalized.isAtSameMomentAs(todayNormalized);
+    }
+
+    final weekday = todayNormalized.weekday;
+    if (order.frequency.endsWith('_5')) {
+      return weekday >= 1 && weekday <= 5; // Mon-Fri
+    } else if (order.frequency.endsWith('_6')) {
+      return weekday >= 1 && weekday <= 6; // Mon-Sat
+    } else {
+      return true; // Mon-Sun
+    }
+  }
+
   Widget _buildOneTimeDeliveryStatusCard(OrderModel order) {
     return OneTimeOrderTracker(order: order);
   }
@@ -742,56 +714,23 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
     _calculateCurrentStage();
   }
 
+
   void _calculateCurrentStage() {
     if (_isManualOverride) return;
-    
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final deliveryDate = DateTime(widget.order.startDate.year, widget.order.startDate.month, widget.order.startDate.day);
-
-    if (today.isAfter(deliveryDate)) {
-      _activeStage = 3;
-      return;
-    }
-    if (today.isBefore(deliveryDate)) {
-      _activeStage = 0;
-      return;
-    }
-
-    // It is today! Check the hours
-    final hour = now.hour;
-    final minute = now.minute;
-    final double timeOfDay = hour + (minute / 60.0);
-
-    if (widget.order.deliverySlot == 'dinner') {
-      if (timeOfDay < 19.0) {
-        _activeStage = 0; // Placed (before 7:00 PM)
-      } else if (timeOfDay >= 19.0 && timeOfDay < 19.75) {
-        _activeStage = 1; // Preparing (7:00 PM - 7:45 PM)
-      } else if (timeOfDay >= 19.75 && timeOfDay < 21.0) {
-        _activeStage = 2; // Dispatched (7:45 PM - 9:00 PM)
-      } else {
-        _activeStage = 3; // Delivered (after 9:00 PM)
-      }
-    } else {
-      // Lunch
-      if (timeOfDay < 11.5) {
-        _activeStage = 0; // Placed (before 11:30 AM)
-      } else if (timeOfDay >= 11.5 && timeOfDay < 12.25) {
-        _activeStage = 1; // Preparing (11:30 AM - 12:15 PM)
-      } else if (timeOfDay >= 12.25 && timeOfDay < 13.5) {
-        _activeStage = 2; // Dispatched (12:15 PM - 1:30 PM)
-      } else {
-        _activeStage = 3; // Delivered (after 1:30 PM)
-      }
-    }
+    setState(() {
+      _activeStage = widget.order.todayActiveStage;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final deliveryDate = DateTime(widget.order.startDate.year, widget.order.startDate.month, widget.order.startDate.day);
+    final deliveryDate = DateTime.now();
     final String formattedDate = DateFormat('EEEE, dd MMM').format(deliveryDate);
-    final String timeRange = widget.order.deliverySlot == 'lunch' ? "12:00 PM - 2:00 PM" : "7:30 PM - 9:30 PM";
+    
+    final isDinnerNow = widget.order.deliverySlot == 'dinner' || 
+        (widget.order.deliverySlot == 'both' && DateTime.now().hour >= 15);
+    final String activeSlotName = isDinnerNow ? "Dinner" : "Lunch";
+    final String timeRange = isDinnerNow ? "7:00 PM - 9:00 PM" : "11:30 AM - 1:30 PM";
 
     return Column(
       children: [
@@ -817,12 +756,28 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Track Tiffin Delivery",
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: AppTheme.textDark,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Track Today's $activeSlotName Delivery",
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Delivery Window: $timeRange",
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFC3A575),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   if (_isManualOverride)
@@ -945,8 +900,8 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildTrackNodeLabel("Placed", 0),
-                  _buildTrackNodeLabel("Cooking", 1),
-                  _buildTrackNodeLabel("On Way", 2),
+                  _buildTrackNodeLabel("Preparing", 1),
+                  _buildTrackNodeLabel("Out for Delivery", 2),
                   _buildTrackNodeLabel("Delivered", 3),
                 ],
               ),
@@ -1050,7 +1005,7 @@ class _OneTimeOrderTrackerState extends State<OneTimeOrderTracker> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildSimulateButton("Placed", 0),
-                  _buildSimulateButton("Cooking", 1),
+                  _buildSimulateButton("Preparing", 1),
                   _buildSimulateButton("On Way", 2),
                   _buildSimulateButton("Delivered", 3),
                 ],
