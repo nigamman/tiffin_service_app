@@ -51,40 +51,47 @@ class UserProfile {
 class AuthRepository {
   final FirebaseService _db = FirebaseService.instance;
 
-  Future<UserProfile> verifyOtp(String phone, String otp) async {
-    // 1. Mock verify SMS code (standard code 123456)
-    if (otp != '123456') {
-      throw Exception('Invalid OTP verification code');
-    }
-
-    // 2. Fetch user document from Firestore `/users` collection
+  Future<UserProfile> getUserOrCreateProfile({
+    required String id,
+    required String phone,
+    required String name,
+  }) async {
     final existingUsers = await _db.collectionGetWhere('users', 'phone', phone);
     UserProfile profile;
 
     if (existingUsers.isNotEmpty) {
       profile = UserProfile.fromMap(existingUsers.first);
+      if (profile.name.isEmpty || profile.name.startsWith('Customer')) {
+        await _db.docUpdate('users', profile.id, {'name': name});
+        profile = UserProfile(
+          id: profile.id,
+          phone: profile.phone,
+          name: name,
+          houseNo: profile.houseNo,
+          area: profile.area,
+          landmark: profile.landmark,
+          isAdmin: profile.isAdmin,
+        );
+      }
     } else {
-      // 3. Create a new Firestore user document on signup
       final isAdmin = phone.endsWith('9999') || phone == '9876543210';
       final newUserMap = {
         'phone': phone,
-        'name': 'Customer ${phone.substring(phone.length - 4)}',
+        'name': name,
         'houseNo': '',
         'area': '',
         'landmark': '',
         'isAdmin': isAdmin,
       };
 
-      final createdDoc = await _db.docAdd('users', newUserMap);
+      final createdDoc = await _db.docSet('users', id, newUserMap);
       profile = UserProfile.fromMap(createdDoc);
     }
 
-    // Associate past orders with this newly created user ID
     _db.associateUserOrders(phone, profile.id);
 
-    // 4. Cache JWT mock token and profile in shared_preferences
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', 'mock_firebase_auth_token_${profile.id}');
+    await prefs.setString('auth_token', 'firebase_auth_token_${profile.id}');
     await prefs.setString('user_profile', jsonEncode(profile.toMap()));
 
     return profile;

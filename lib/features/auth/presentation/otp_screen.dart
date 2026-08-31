@@ -6,8 +6,15 @@ import '../../../core/widgets/custom_button.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phone;
+  final String verificationId;
+  final String name;
 
-  const OtpScreen({Key? key, required this.phone}) : super(key: key);
+  const OtpScreen({
+    Key? key,
+    required this.phone,
+    required this.verificationId,
+    required this.name,
+  }) : super(key: key);
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -25,7 +32,12 @@ class _OtpScreenState extends State<OtpScreen> {
 
   void _verify() {
     if (_formKey.currentState?.validate() ?? false) {
-      context.read<AuthCubit>().verifyOtp(widget.phone, _otpController.text.trim());
+      context.read<AuthCubit>().verifyOtp(
+        phone: widget.phone,
+        otp: _otpController.text.trim(),
+        verificationId: widget.verificationId,
+        name: widget.name,
+      );
     }
   }
 
@@ -37,12 +49,16 @@ class _OtpScreenState extends State<OtpScreen> {
           // Success! Pop back to root so home is shown
           Navigator.popUntil(context, (route) => route.isFirst);
         } else if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
+          if (state.isSmsUnavailable) {
+            _showQuotaExceededDialog(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppTheme.errorColor,
+              ),
+            );
+          }
         }
       },
       child: Scaffold(
@@ -116,37 +132,6 @@ class _OtpScreenState extends State<OtpScreen> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          // Help alert for testing
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.secondaryMarigold.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AppTheme.secondaryMarigold.withOpacity(0.3),
-                              ),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: AppTheme.secondaryMarigold,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    "For testing in Mock Mode, enter code 123456.",
-                                    style: TextStyle(
-                                      color: AppTheme.textDark,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           const SizedBox(height: 32),
                           BlocBuilder<AuthCubit, AuthState>(
                             builder: (context, state) {
@@ -161,7 +146,7 @@ class _OtpScreenState extends State<OtpScreen> {
                           Center(
                             child: TextButton(
                               onPressed: () {
-                                context.read<AuthCubit>().sendOtp(widget.phone);
+                                context.read<AuthCubit>().sendOtp(widget.phone, widget.name);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text("OTP resent successfully"),
@@ -183,6 +168,64 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showQuotaExceededDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.secondaryMarigold, size: 28),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "OTP Service Unavailable",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            "Due to an internal issue, the SMS OTP service is temporarily unavailable. "
+            "Please log in using your Google account to continue instantly.",
+            style: TextStyle(fontSize: 14, height: 1.4),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Pop dialog and pop OTP screen back to Welcome / Root to clear state cleanly
+                    Navigator.pop(dialogContext);
+                    Navigator.pop(context);
+                    context.read<AuthCubit>().signInWithGoogle();
+                  },
+                  icon: const Icon(Icons.g_mobiledata, size: 28),
+                  label: const Text("Log In with Google"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text("Cancel", style: TextStyle(color: AppTheme.textMuted)),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

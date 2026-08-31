@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'features/auth/presentation/auth_cubit.dart';
 import 'features/home/presentation/menu_cubit.dart';
 import 'features/orders/presentation/orders_cubit.dart';
-import 'features/home/presentation/main_layout.dart';
 import 'features/onboarding/presentation/welcome_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/firebase_service.dart';
@@ -22,7 +21,7 @@ void main() async {
   
   // One-time clear flag for fresh testing.
   // Set to true to clear, then set to false.
-  const bool shouldClearData = true;
+  const bool shouldClearData = false;
   if (shouldClearData) {
     try {
       final firestore = FirebaseFirestore.instance;

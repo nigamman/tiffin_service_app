@@ -88,10 +88,50 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     final remainingMeals = order.remainingMeals;
     final double progressPercent = order.progressPercent;
 
-    // Count skipped slots in these 7 days
+    final int maxDays = order.frequency == 'one-time' ? 1 : order.remainingMeals;
+    final int daysLimit = maxDays < 7 ? maxDays : 7;
+
+    // Helper to check if a date is fully skipped
+    bool isDateFullySkipped(OrderModel order, DateTime date) {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(date));
+      if (isDaySkipped) return true;
+
+      final List<String> activeSlots = [];
+      if (order.deliverySlot == 'lunch' || order.deliverySlot == 'both') {
+        activeSlots.add('lunch');
+      }
+      if (order.deliverySlot == 'dinner' || order.deliverySlot == 'both') {
+        activeSlots.add('dinner');
+      }
+      
+      if (activeSlots.isEmpty) return false;
+      return activeSlots.every((slot) => order.skippedSlots.contains("${dateStr}_$slot"));
+    }
+
+    // List of next delivery days to show (loop until we collect daysLimit of non-skipped scheduled meals)
+    final List<DateTime> nextDays = [];
+    DateTime checkDate = todayNormalized.isBefore(DateTime(order.startDate.year, order.startDate.month, order.startDate.day))
+        ? DateTime(order.startDate.year, order.startDate.month, order.startDate.day)
+        : todayNormalized;
+    
+    int scheduledMealsCount = 0;
+    int safetyLimit = 30; // safety ceiling to prevent infinite loop
+
+    while (scheduledMealsCount < daysLimit && safetyLimit > 0) {
+      if (_isDeliveryDay(checkDate, order.frequency)) {
+        nextDays.add(checkDate);
+        if (!isDateFullySkipped(order, checkDate)) {
+          scheduledMealsCount++;
+        }
+      }
+      checkDate = checkDate.add(const Duration(days: 1));
+      safetyLimit--;
+    }
+
+    // Count skipped slots in these days
     int skipCount = 0;
-    final List<DateTime> next7Days = List.generate(7, (i) => todayNormalized.add(Duration(days: i)));
-    for (final day in next7Days) {
+    for (final day in nextDays) {
       final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(day));
       if (isDaySkipped) {
         skipCount++;
@@ -126,7 +166,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Next 7 Days Schedule",
+                        daysLimit == 1 ? "Next Day's Schedule" : "Next $daysLimit Days Schedule",
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -164,7 +204,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
               ),
             ),
 
-            _buildSevenDayScheduleList(context, order, skipCount),
+            _buildSevenDayScheduleList(context, order, skipCount, nextDays),
           ],
 
           // 3. Billing & Address section
@@ -324,21 +364,9 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     );
   }
 
-  Widget _buildSevenDayScheduleList(BuildContext context, OrderModel order, int skipCount) {
+  Widget _buildSevenDayScheduleList(BuildContext context, OrderModel order, int skipCount, List<DateTime> nextDays) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final startDateNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
-    final DateTime scheduleStart = today.isBefore(startDateNormalized) ? startDateNormalized : today;
-
-    // List of next 7 delivery days
-    final List<DateTime> nextDays = [];
-    DateTime checkDate = scheduleStart;
-    while (nextDays.length < 7) {
-      if (_isDeliveryDay(checkDate, order.frequency)) {
-        nextDays.add(checkDate);
-      }
-      checkDate = checkDate.add(const Duration(days: 1));
-    }
 
     return ListView.separated(
       shrinkWrap: true,

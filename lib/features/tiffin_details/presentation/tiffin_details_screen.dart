@@ -6,7 +6,6 @@ import '../../home/data/menu_repository.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../booking/presentation/booking_flow_screen.dart';
-import '../../../core/theme/app_theme.dart';
 
 class TiffinDetailsScreen extends StatefulWidget {
   final MenuModel menu;

@@ -7,6 +7,7 @@ class CustomButton extends StatelessWidget {
   final bool isLoading;
   final bool isSecondary;
   final IconData? icon;
+  final bool hasGoldenOutline;
 
   const CustomButton({
     Key? key,
@@ -15,6 +16,7 @@ class CustomButton extends StatelessWidget {
     this.isLoading = false,
     this.isSecondary = false,
     this.icon,
+    this.hasGoldenOutline = false,
   }) : super(key: key);
 
   @override
@@ -27,6 +29,10 @@ class CustomButton extends StatelessWidget {
       foregroundColor: Colors.white,
       disabledBackgroundColor: AppTheme.primaryGreen.withOpacity(0.5),
       disabledForegroundColor: Colors.white.withOpacity(0.8),
+      side: hasGoldenOutline ? const BorderSide(color: Color(0xFFC3A575), width: 2) : null,
+      shape: hasGoldenOutline 
+          ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(26))
+          : null,
     );
 
     final secondaryStyle = ElevatedButton.styleFrom(

@@ -12,7 +12,20 @@
           "package_name": "com.example.tiffin_service_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "57069695734-q16q3kfi9bjiiea99r398gbfh8pi8u2s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tiffin_service_app",
+            "certificate_hash": "553c863873a05bb2acbe5147ff189abc4a94a60c"
+          }
+        },
+        {
+          "client_id": "57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDEmicQIfps62Rqpr1McMCVuOMDT7Njav4"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "57069695734-gup76s4bvo1i5kd6m0v5df6qgrqmnin3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.tiffinServiceApp"
+              }
+            }
+          ]
         }
       }
     }

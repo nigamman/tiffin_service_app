@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/auth_repository.dart';
 
 abstract class AuthState extends Equatable {
@@ -15,10 +16,12 @@ class AuthLoading extends AuthState {}
 
 class AuthOtpSent extends AuthState {
   final String phone;
-  const AuthOtpSent(this.phone);
+  final String verificationId;
+  final String name;
+  const AuthOtpSent({required this.phone, required this.verificationId, required this.name});
 
   @override
-  List<Object?> get props => [phone];
+  List<Object?> get props => [phone, verificationId, name];
 }
 
 class AuthAuthenticated extends AuthState {
@@ -31,10 +34,11 @@ class AuthAuthenticated extends AuthState {
 
 class AuthError extends AuthState {
   final String message;
-  const AuthError(this.message);
+  final bool isSmsUnavailable;
+  const AuthError(this.message, {this.isSmsUnavailable = false});
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, isSmsUnavailable];
 }
 
 class AuthCubit extends Cubit<AuthState> {
@@ -57,21 +61,95 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  Future<void> sendOtp(String phone) async {
-    emit(AuthLoading());
-    // Simulate sending OTP. In real app Firebase Phone verification would happen here.
-    await Future.delayed(const Duration(milliseconds: 600));
-    emit(AuthOtpSent(phone));
-  }
-
-  Future<void> verifyOtp(String phone, String otp) async {
+  Future<void> sendOtp(String phone, String name) async {
     emit(AuthLoading());
     try {
-      final user = await _repository.verifyOtp(phone, otp);
-      emit(AuthAuthenticated(user));
+      final formattedPhone = phone.startsWith('+') ? phone : '+91$phone';
+      
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: formattedPhone,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+            final User? firebaseUser = userCredential.user;
+            if (firebaseUser != null) {
+              final profile = await _repository.getUserOrCreateProfile(
+                id: firebaseUser.uid,
+                phone: phone,
+                name: name,
+              );
+              emit(AuthAuthenticated(profile));
+            }
+          } catch (e) {
+            emit(AuthError(e.toString()));
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          final msg = e.message?.toLowerCase() ?? '';
+          final code = e.code.toLowerCase();
+          
+          final isSmsUnavailable = code == 'quota-exceeded' || 
+                                   code == 'operation-not-allowed' || 
+                                   code == '17010' ||
+                                   code.contains('blocked') ||
+                                   msg.contains('quota') ||
+                                   msg.contains('operation is not allowed') ||
+                                   msg.contains('operation-not-allowed') ||
+                                   msg.contains('sms unable to be sent') ||
+                                   msg.contains('region enabled') ||
+                                   msg.contains('disabled') ||
+                                   msg.contains('limit') ||
+                                   msg.contains('not allowed') ||
+                                   msg.contains('blocked') ||
+                                   msg.contains('unusual activity');
+                                   
+          emit(AuthError(
+            isSmsUnavailable 
+                ? "OTP service is temporarily unavailable. Please log in with Google to continue."
+                : (e.message ?? "Phone verification failed"),
+            isSmsUnavailable: isSmsUnavailable,
+          ));
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          emit(AuthOtpSent(phone: phone, verificationId: verificationId, name: name));
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+        timeout: const Duration(seconds: 60),
+      );
+    } catch (e) {
+      emit(AuthError(e.toString()));
+    }
+  }
+
+  Future<void> verifyOtp({
+    required String phone,
+    required String otp,
+    required String verificationId,
+    required String name,
+  }) async {
+    emit(AuthLoading());
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: otp,
+      );
+      
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final User? firebaseUser = userCredential.user;
+      
+      if (firebaseUser == null) {
+        throw Exception("Sign in failed");
+      }
+      
+      final profile = await _repository.getUserOrCreateProfile(
+        id: firebaseUser.uid,
+        phone: phone,
+        name: name,
+      );
+      emit(AuthAuthenticated(profile));
     } catch (e) {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-      emit(AuthOtpSent(phone)); // Go back to OTP sent screen so user can retry
+      emit(AuthOtpSent(phone: phone, verificationId: verificationId, name: name));
     }
   }
 
