@@ -59,25 +59,31 @@ class AuthRepository {
     final existingUsers = await _db.collectionGetWhere('users', 'phone', phone);
     UserProfile profile;
 
+    final isSystemAdmin = phone == '9450900700' || phone == '9999999999' || name.toLowerCase() == 'admin';
+
     if (existingUsers.isNotEmpty) {
       profile = UserProfile.fromMap(existingUsers.first);
-      if (profile.name.isEmpty || profile.name.startsWith('Customer')) {
-        await _db.docUpdate('users', profile.id, {'name': name});
+      if (profile.name.isEmpty || profile.name.startsWith('Customer') || isSystemAdmin) {
+        final updatedName = isSystemAdmin ? 'Admin' : name;
+        await _db.docUpdate('users', profile.id, {
+          'name': updatedName,
+          'isAdmin': isSystemAdmin ? true : profile.isAdmin,
+        });
         profile = UserProfile(
           id: profile.id,
           phone: profile.phone,
-          name: name,
+          name: updatedName,
           houseNo: profile.houseNo,
           area: profile.area,
           landmark: profile.landmark,
-          isAdmin: profile.isAdmin,
+          isAdmin: isSystemAdmin ? true : profile.isAdmin,
         );
       }
     } else {
-      final isAdmin = phone.endsWith('9999') || phone == '9876543210';
+      final isAdmin = isSystemAdmin || phone.endsWith('9999') || phone == '9876543210';
       final newUserMap = {
         'phone': phone,
-        'name': name,
+        'name': isAdmin ? 'Admin' : name,
         'houseNo': '',
         'area': '',
         'landmark': '',
@@ -179,14 +185,31 @@ class AuthRepository {
 
     if (existingUsers.isNotEmpty) {
       profile = UserProfile.fromMap(existingUsers.first);
+      final isSystemAdmin = profile.phone == '9450900700' || profile.phone == '9999999999' || profile.name.toLowerCase() == 'admin';
+      if (isSystemAdmin && !profile.isAdmin) {
+        await _db.docUpdate('users', profile.id, {'isAdmin': true});
+        profile = UserProfile(
+          id: profile.id,
+          phone: profile.phone,
+          name: profile.name,
+          houseNo: profile.houseNo,
+          area: profile.area,
+          landmark: profile.landmark,
+          isAdmin: true,
+        );
+      }
     } else {
+      final phone = firebaseUser.phoneNumber ?? '';
+      final name = firebaseUser.displayName ?? 'Customer';
+      final isAdmin = phone == '9450900700' || phone == '9999999999' || name.toLowerCase() == 'admin';
+      
       final newUserMap = {
-        'phone': firebaseUser.phoneNumber ?? '',
-        'name': firebaseUser.displayName ?? 'Customer',
+        'phone': phone,
+        'name': isAdmin ? 'Admin' : name,
         'houseNo': '',
         'area': '',
         'landmark': '',
-        'isAdmin': false,
+        'isAdmin': isAdmin,
       };
       
       // Set doc with Firebase User ID

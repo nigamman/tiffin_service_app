@@ -85,29 +85,9 @@ class AuthCubit extends Cubit<AuthState> {
           }
         },
         verificationFailed: (FirebaseAuthException e) {
-          final msg = e.message?.toLowerCase() ?? '';
-          final code = e.code.toLowerCase();
-          
-          final isSmsUnavailable = code == 'quota-exceeded' || 
-                                   code == 'operation-not-allowed' || 
-                                   code == '17010' ||
-                                   code.contains('blocked') ||
-                                   msg.contains('quota') ||
-                                   msg.contains('operation is not allowed') ||
-                                   msg.contains('operation-not-allowed') ||
-                                   msg.contains('sms unable to be sent') ||
-                                   msg.contains('region enabled') ||
-                                   msg.contains('disabled') ||
-                                   msg.contains('limit') ||
-                                   msg.contains('not allowed') ||
-                                   msg.contains('blocked') ||
-                                   msg.contains('unusual activity');
-                                   
-          emit(AuthError(
-            isSmsUnavailable 
-                ? "OTP service is temporarily unavailable. Please log in with Google to continue."
-                : (e.message ?? "Phone verification failed"),
-            isSmsUnavailable: isSmsUnavailable,
+          emit(const AuthError(
+            "OTP service is temporarily unavailable. Please log in with Google to continue.",
+            isSmsUnavailable: true,
           ));
         },
         codeSent: (String verificationId, int? resendToken) {
@@ -117,7 +97,10 @@ class AuthCubit extends Cubit<AuthState> {
         timeout: const Duration(seconds: 60),
       );
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(const AuthError(
+        "OTP service is temporarily unavailable. Please log in with Google to continue.",
+        isSmsUnavailable: true,
+      ));
     }
   }
 
