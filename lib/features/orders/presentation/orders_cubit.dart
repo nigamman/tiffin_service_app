@@ -40,9 +40,9 @@ class OrdersCubit extends Cubit<OrdersState> {
     try {
       final allOrders = await _repository.getUserOrders();
       
-      // Group by subscription vs one-time meals
-      final active = allOrders.where((o) => o.frequency != 'one-time').toList();
-      final history = allOrders.where((o) => o.frequency == 'one-time').toList();
+      // Group by active vs history
+      final active = allOrders.where((o) => o.orderStatus != 'cancelled' && o.remainingMeals > 0).toList();
+      final history = allOrders.where((o) => o.orderStatus == 'cancelled' || o.remainingMeals == 0).toList();
 
       emit(OrdersLoaded(activeOrders: active, orderHistory: history));
     } catch (e) {

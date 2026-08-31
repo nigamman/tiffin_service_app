@@ -5,7 +5,7 @@ import 'orders_cubit.dart';
 import '../data/orders_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/notification_overlay.dart';
-import 'subscription_details_screen.dart';
+import 'order_details_screen.dart';
 
 
 class MyOrdersScreen extends StatefulWidget {
@@ -47,8 +47,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           unselectedLabelStyle: const TextStyle(),
           tabs: const [
-            Tab(text: "My Subscriptions"),
-            Tab(text: "One-Time Orders"),
+            Tab(text: "Active Bookings"),
+            Tab(text: "Order History"),
           ],
         ),
       ),
@@ -85,7 +85,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
 
   Widget _buildActivePlansList(List<OrderModel> activeOrders) {
     if (activeOrders.isEmpty) {
-      return _buildEmptyState("No subscriptions found", "Subscribe to a daily, weekly, or monthly plan today!");
+      return _buildEmptyState("No active bookings found", "Order a single-day meal or subscribe to a plan today!");
     }
 
     return RefreshIndicator(
@@ -99,84 +99,42 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           
           final now = DateTime.now();
           final todayNormalized = DateTime(now.year, now.month, now.day);
-          final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
-          
-          final totalMeals = order.totalMeals;
-          final deliveredMeals = order.deliveredMeals;
-          final remainingMeals = order.remainingMeals;
-          final double progressPercent = order.progressPercent;
+          final tomorrowNormalized = todayNormalized.add(const Duration(days: 1));
 
-          // Determine the cutoff time for today's delivery (2 hours before delivery slot)
-          int cutoffHour = 9; // 9:30 AM
-          int cutoffMinute = 30;
-          String cutoffText = "9:30 AM";
-          if (order.deliverySlot == 'dinner') {
-            cutoffHour = 17; // 5:00 PM
-            cutoffMinute = 0;
-            cutoffText = "5:00 PM";
-          } else if (order.deliverySlot == 'both') {
-            cutoffHour = 9; // 9:30 AM for lunch
-            cutoffMinute = 30;
-            cutoffText = "9:30 AM";
-          }
-          
-          final todayCutoff = DateTime(now.year, now.month, now.day, cutoffHour, cutoffMinute);
-          
-          DateTime targetSkipDate;
-          if (startNormalized.isAfter(todayNormalized)) {
-            targetSkipDate = startNormalized;
-          } else if (now.isBefore(todayCutoff)) {
-            targetSkipDate = todayNormalized;
-          } else {
-            targetSkipDate = todayNormalized.add(const Duration(days: 1));
-          }
-          
-          final isTargetSkipped = order.skippedDates.any(
-            (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(targetSkipDate),
-          );
-          
-          final isTargetToday = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
-              .isAtSameMomentAs(todayNormalized);
-          final isTargetTomorrow = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
-              .isAtSameMomentAs(todayNormalized.add(const Duration(days: 1)));
-          
-          final String dayLabel = isTargetToday 
-              ? "Today" 
-              : (isTargetTomorrow ? "Tomorrow" : DateFormat('EEEE, dd MMM').format(targetSkipDate));
+          // Helper to check if a date's slots are fully skipped
+          bool isDateFullySkipped(OrderModel order, DateTime date) {
+            final dateStr = DateFormat('yyyy-MM-dd').format(date);
+            final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(date));
+            if (isDaySkipped) return true;
 
-          final String slotTimingText;
-          if (order.deliverySlot == 'lunch') {
-            slotTimingText = "11:30 AM - 1:30 PM";
-          } else if (order.deliverySlot == 'dinner') {
-            slotTimingText = "7:00 PM - 9:00 PM";
-          } else {
-            slotTimingText = "Lunch: 11:30 AM - 1:30 PM & Dinner: 7:00 PM - 9:00 PM";
-          }
-
-          // Count skipped slots in these 7 days
-          int skipCount = 0;
-          final List<DateTime> next7Days = List.generate(7, (i) => todayNormalized.add(Duration(days: i)));
-          for (final day in next7Days) {
-            final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(day));
-            if (isDaySkipped) {
-              skipCount++;
-              continue;
+            final List<String> activeSlots = [];
+            if (order.deliverySlot == 'lunch' || order.deliverySlot == 'both') {
+              activeSlots.add('lunch');
             }
-            for (final slot in ['lunch', 'dinner']) {
-              final slotKey = "${DateFormat('yyyy-MM-dd').format(day)}_$slot";
-              if (order.skippedSlots.contains(slotKey)) {
-                skipCount++;
-              }
+            if (order.deliverySlot == 'dinner' || order.deliverySlot == 'both') {
+              activeSlots.add('dinner');
             }
+            
+            if (activeSlots.isEmpty) return false;
+            return activeSlots.every((slot) => order.skippedSlots.contains("${dateStr}_$slot"));
           }
-          final bool hasReachedSkipLimit = skipCount >= 1;
+
+          final bool isTodayScheduled = order.isScheduledToday;
+          final bool isTodaySkipped = isTodayScheduled && isDateFullySkipped(order, todayNormalized);
+
+          final bool isTomorrowScheduled = order.orderStatus != 'cancelled' &&
+              !DateTime(order.startDate.year, order.startDate.month, order.startDate.day).isAfter(tomorrowNormalized) &&
+              (order.frequency == 'one-time'
+                  ? DateTime(order.startDate.year, order.startDate.month, order.startDate.day).isAtSameMomentAs(tomorrowNormalized)
+                  : OrderModel.isDeliveryDay(tomorrowNormalized, order.frequency));
+          final bool isTomorrowSkipped = isTomorrowScheduled && isDateFullySkipped(order, tomorrowNormalized);
 
           return GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => SubscriptionDetailsScreen(order: order),
+                  builder: (context) => OrderDetailsScreen(order: order),
                 ),
               );
             },
@@ -195,212 +153,155 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                 ],
               ),
               child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Card Header Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: order.frequency == 'one-time'
-                            ? AppTheme.secondaryMarigold.withOpacity(0.08)
-                            : AppTheme.primaryGreen.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        order.frequency == 'one-time'
-                            ? "ONE-TIME MEAL"
-                            : "${order.frequency.toUpperCase()} SUBSCRIPTION",
-                        style: TextStyle(
-                          color: order.frequency == 'one-time'
-                              ? AppTheme.secondaryMarigold
-                              : AppTheme.primaryGreen,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-                    const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: AppTheme.successColor, size: 14),
-                        SizedBox(width: 6),
-                        Text(
-                          "Active",
-                          style: TextStyle(
-                            color: AppTheme.successColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Meal Title
-                Text(
-                  "Home Tiffin Meal  •  ${order.quantity} Box",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                if (order.frequency != 'one-time') ...[
-                  // Premium Progress Tracker
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Card Header Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Subscription Progress",
-                        style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
-                      ),
-                      Text(
-                        "$remainingMeals of $totalMeals meals left",
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: AppTheme.borderLight.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: progressPercent,
-                      child: Container(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen,
-                          borderRadius: BorderRadius.circular(3),
+                          color: order.frequency == 'one-time'
+                              ? AppTheme.secondaryMarigold.withOpacity(0.08)
+                              : AppTheme.primaryGreen.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          order.frequency == 'one-time'
+                              ? "ONE-TIME MEAL"
+                              : "${order.frequency.toUpperCase()} SUBSCRIPTION",
+                          style: TextStyle(
+                            color: order.frequency == 'one-time'
+                                ? AppTheme.secondaryMarigold
+                                : AppTheme.primaryGreen,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            letterSpacing: 1.0,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const Divider(height: 32, color: AppTheme.borderLight),
-                ] else ...[
-                  const Divider(height: 24, color: AppTheme.borderLight),
-                ],
-                
-                // Timeline Delivery details
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isTargetSkipped 
-                            ? AppTheme.errorColor.withOpacity(0.06)
-                            : AppTheme.primaryGreen.withOpacity(0.06),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        isTargetSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
-                        size: 18,
-                        color: isTargetSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const Row(
                         children: [
+                          Icon(Icons.check_circle, color: AppTheme.successColor, size: 14),
+                          SizedBox(width: 6),
                           Text(
-                            isTargetSkipped
-                                ? "$dayLabel's Delivery Skipped"
-                                : "Scheduled $dayLabel",
+                            "Active",
                             style: TextStyle(
+                              color: AppTheme.successColor,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: isTargetSkipped ? AppTheme.errorColor : AppTheme.textDark,
-                            ),
-                          ),
-                          Text(
-                            isTargetSkipped
-                                ? "You will not receive tiffin box for $dayLabel's ${order.deliverySlot} slot."
-                                : "Delivered $dayLabel during ${order.deliverySlot.toUpperCase()} slot ($slotTimingText).",
-                            style: const TextStyle(
                               fontSize: 12,
-                              color: AppTheme.textMuted,
-                              height: 1.3,
                             ),
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Meal Title
+                  Text(
+                    "Home Tiffin Meal  •  ${order.quantity} Box",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: AppTheme.textDark,
                     ),
-                  ],
-                ),
-                
-                // Skip options
-                if (order.frequency != 'one-time') ...[
-                  const SizedBox(height: 20),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
-                          ? AppTheme.textMuted 
-                          : AppTheme.secondaryMarigold,
-                      side: BorderSide(
-                        color: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
-                            ? AppTheme.borderLight 
-                            : AppTheme.secondaryMarigold,
-                        width: 1.2,
-                      ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      minimumSize: const Size(double.infinity, 44),
-                      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-                    icon: Icon(
-                      isTargetSkipped 
-                          ? Icons.check_circle_outline 
-                          : (hasReachedSkipLimit ? Icons.lock_outline : Icons.skip_next_outlined),
-                      size: 16,
-                    ),
-                    label: Text(
-                      isTargetSkipped 
-                          ? "Delivery Skipped" 
-                          : (hasReachedSkipLimit ? "Weekly Skip Limit Reached" : "Skip $dayLabel's Delivery"),
-                    ),
-                    onPressed: (isTargetSkipped || hasReachedSkipLimit)
-                        ? null
-                        : () {
-                            context.read<OrdersCubit>().skipDeliveryDate(order.id, targetSkipDate);
-                            NotificationOverlay.show(
-                              context,
-                              title: "Delivery Skipped",
-                              message: "Your delivery has been skipped for $dayLabel.",
-                              icon: Icons.skip_next,
-                            );
-                          },
                   ),
                   const SizedBox(height: 6),
-                  Center(
-                    child: Text(
-                      "Note: Skip requests accepted up to 2 hours before delivery ($cutoffText cutoff)",
-                      style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
-                    ),
+                  Text(
+                    "Delivery Slot: ${order.deliverySlot.toUpperCase()}",
+                    style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
                   ),
+                  const Divider(height: 24, color: AppTheme.borderLight),
+                  
+                  // Scheduled Status
+                  if (isTodayScheduled) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          isTodaySkipped 
+                              ? Icons.block_outlined 
+                              : (order.todayActiveStage == 3 ? Icons.check_circle : Icons.pedal_bike),
+                          size: 18,
+                          color: isTodaySkipped 
+                              ? AppTheme.errorColor 
+                              : (order.todayActiveStage == 3 ? AppTheme.successColor : AppTheme.secondaryMarigold),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          "Today's Delivery: ",
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+                        ),
+                        Text(
+                          isTodaySkipped ? "SKIPPED" : order.todayStatusLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isTodaySkipped
+                                ? AppTheme.errorColor
+                                : (order.todayActiveStage == 3
+                                    ? AppTheme.successColor
+                                    : (order.todayActiveStage == 2
+                                        ? AppTheme.secondaryMarigold
+                                        : (order.todayActiveStage == 1
+                                            ? Colors.orange
+                                            : AppTheme.textDark))),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (isTomorrowScheduled) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          isTomorrowSkipped ? Icons.block_outlined : Icons.calendar_today_outlined,
+                          size: 18,
+                          color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          "Tomorrow's Delivery: ",
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+                        ),
+                        Text(
+                          isTomorrowSkipped ? "SKIPPED" : "SCHEDULED",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.successColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 18,
+                          color: AppTheme.primaryGreen,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          "Scheduled for: ${DateFormat('dd MMM').format(order.startDate)}",
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
       ),
     );
   }
 
   Widget _buildHistoryList(List<OrderModel> orderHistory) {
     if (orderHistory.isEmpty) {
-      return _buildEmptyState("No one-time orders found", "Order a single-day fresh meal to try Atithi Bhoj!");
+      return _buildEmptyState("No order history found", "Your completed or cancelled bookings will appear here.");
     }
 
     return ListView.builder(
@@ -415,7 +316,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => SubscriptionDetailsScreen(order: order),
+                builder: (context) => OrderDetailsScreen(order: order),
               ),
             );
           },
@@ -434,76 +335,76 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
               ],
             ),
             child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Calendar/History Icon
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: order.orderStatus == 'cancelled'
-                      ? AppTheme.errorColor.withOpacity(0.06)
-                      : AppTheme.primaryGreen.withOpacity(0.06),
-                  shape: BoxShape.circle,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Calendar/History Icon
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: order.orderStatus == 'cancelled'
+                        ? AppTheme.errorColor.withOpacity(0.06)
+                        : AppTheme.primaryGreen.withOpacity(0.06),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    order.orderStatus == 'cancelled' 
+                        ? Icons.cancel_outlined 
+                        : Icons.assignment_turned_in_outlined,
+                    size: 20,
+                    color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.primaryGreen,
+                  ),
                 ),
-                child: Icon(
-                  order.orderStatus == 'cancelled' 
-                      ? Icons.cancel_outlined 
-                      : Icons.assignment_turned_in_outlined,
-                  size: 20,
-                  color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.primaryGreen,
+                const SizedBox(width: 16),
+                
+                // Metadata
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Order #${order.id.toUpperCase().substring(order.id.length - 6)}",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        "${order.frequency.toUpperCase()} plan • ${order.quantity} box • $formattedDate",
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              
-              // Metadata
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                
+                // Price and status badge
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      "Order #${order.id.toUpperCase().substring(order.id.length - 6)}",
+                      "₹${order.finalAmount.toStringAsFixed(0)}",
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppTheme.textDark,
+                        fontSize: 15,
+                        color: AppTheme.primaryGreen,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      "${order.frequency.toUpperCase()} plan • ${order.quantity} box • $formattedDate",
-                      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                      order.orderStatus == 'cancelled' ? "Cancelled" : "Delivered",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.successColor,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              
-              // Price and status badge
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    "₹${order.finalAmount.toStringAsFixed(0)}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: AppTheme.primaryGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    order.orderStatus == 'cancelled' ? "Cancelled" : "Completed",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: order.orderStatus == 'cancelled' ? AppTheme.errorColor : AppTheme.successColor,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
+        );
       },
     );
   }
@@ -531,16 +432,5 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         ),
       ),
     );
-  }
-
-  bool _isDeliveryDay(DateTime date, String frequency) {
-    final weekday = date.weekday; // 1 = Monday, ..., 7 = Sunday
-    
-    if (frequency.contains('_5') || frequency == 'weekly' || frequency == 'monthly') {
-      return weekday >= 1 && weekday <= 5;
-    } else if (frequency.contains('_6')) {
-      return weekday >= 1 && weekday <= 6;
-    }
-    return true;
   }
 }

@@ -499,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
             return BlocBuilder<OrdersCubit, OrdersState>(
               builder: (context, ordersState) {
                 if (ordersState is OrdersLoaded) {
-                  final activeSubs = ordersState.activeOrders.where((o) => o.orderStatus != 'cancelled').toList();
+                  final activeSubs = ordersState.activeOrders.where((o) => o.frequency != 'one-time' && o.orderStatus != 'cancelled').toList();
                   if (activeSubs.isNotEmpty) {
                     final activeOrder = activeSubs.first;
                     final String freq = activeOrder.frequency[0].toUpperCase() + activeOrder.frequency.substring(1);

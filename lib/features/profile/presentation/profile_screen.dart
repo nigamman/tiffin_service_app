@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:intl/intl.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../../core/constants/api_constants.dart';
+import '../../orders/presentation/orders_cubit.dart';
+import '../../orders/data/orders_repository.dart';
+import '../../orders/presentation/subscription_details_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/notification_overlay.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -18,6 +22,12 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   // Local cache to preserve UI during Bloc Loading state transitions
   UserProfile? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<OrdersCubit>().loadOrders();
+  }
 
   Future<void> _detectLocation(
     TextEditingController houseController,
@@ -336,6 +346,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                             ),
                     ),
+                    const SizedBox(height: 24),
+                    Text(
+                      "Manage Subscriptions",
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    BlocBuilder<OrdersCubit, OrdersState>(
+                      builder: (context, ordersState) {
+                        if (ordersState is OrdersLoading) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 20),
+                              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+                            ),
+                          );
+                        }
+                        if (ordersState is OrdersLoaded) {
+                          final activeSubs = ordersState.activeOrders
+                              .where((o) => o.frequency != 'one-time')
+                              .toList();
+
+                          if (activeSubs.isEmpty) {
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppTheme.borderLight),
+                              ),
+                              child: const Text(
+                                "No active subscriptions. Subscribe to a plan to manage it here.",
+                                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: activeSubs.length,
+                            itemBuilder: (context, index) {
+                              final order = activeSubs[index];
+                              return _buildSubscriptionManagementCard(context, order);
+                            },
+                          );
+                        }
+                        return const SizedBox();
+                      },
+                    ),
                     const SizedBox(height: 40),
 
                     // Log out
@@ -365,6 +428,306 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionManagementCard(BuildContext context, OrderModel order) {
+    final now = DateTime.now();
+    final todayNormalized = DateTime(now.year, now.month, now.day);
+    final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
+
+    final totalMeals = order.totalMeals;
+    final remainingMeals = order.remainingMeals;
+    final double progressPercent = order.progressPercent;
+
+    // Determine cutoff time (2 hours before delivery slot)
+    int cutoffHour = 9; // 9:30 AM
+    int cutoffMinute = 30;
+    String cutoffText = "9:30 AM";
+    if (order.deliverySlot == 'dinner') {
+      cutoffHour = 17; // 5:00 PM
+      cutoffMinute = 0;
+      cutoffText = "5:00 PM";
+    } else if (order.deliverySlot == 'both') {
+      cutoffHour = 9; // 9:30 AM for lunch
+      cutoffMinute = 30;
+      cutoffText = "9:30 AM";
+    }
+
+    final todayCutoff = DateTime(now.year, now.month, now.day, cutoffHour, cutoffMinute);
+
+    DateTime targetSkipDate;
+    if (startNormalized.isAfter(todayNormalized)) {
+      targetSkipDate = startNormalized;
+    } else if (now.isBefore(todayCutoff)) {
+      targetSkipDate = todayNormalized;
+    } else {
+      targetSkipDate = todayNormalized.add(const Duration(days: 1));
+    }
+
+    final isTargetSkipped = order.skippedDates.any(
+      (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(targetSkipDate),
+    );
+
+    final isTargetToday = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
+        .isAtSameMomentAs(todayNormalized);
+    final isTargetTomorrow = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
+        .isAtSameMomentAs(todayNormalized.add(const Duration(days: 1)));
+
+    final String dayLabel = isTargetToday 
+        ? "Today" 
+        : (isTargetTomorrow ? "Tomorrow" : DateFormat('EEEE, dd MMM').format(targetSkipDate));
+
+    final String slotTimingText;
+    if (order.deliverySlot == 'lunch') {
+      slotTimingText = "11:30 AM - 1:30 PM";
+    } else if (order.deliverySlot == 'dinner') {
+      slotTimingText = "7:00 PM - 9:00 PM";
+    } else {
+      slotTimingText = "Lunch: 11:30 AM - 1:30 PM & Dinner: 7:00 PM - 9:00 PM";
+    }
+
+    // Count skipped slots in these 7 days
+    int skipCount = 0;
+    final List<DateTime> next7Days = List.generate(7, (i) => todayNormalized.add(Duration(days: i)));
+    for (final day in next7Days) {
+      final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(day));
+      if (isDaySkipped) {
+        skipCount++;
+        continue;
+      }
+      for (final slot in ['lunch', 'dinner']) {
+        final slotKey = "${DateFormat('yyyy-MM-dd').format(day)}_$slot";
+        if (order.skippedSlots.contains(slotKey)) {
+          skipCount++;
+        }
+      }
+    }
+    final bool hasReachedSkipLimit = skipCount >= 1;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SubscriptionDetailsScreen(order: order),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(20.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.borderLight),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.015),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "${order.frequency.toUpperCase()} SUBSCRIPTION",
+                    style: const TextStyle(
+                      color: AppTheme.primaryGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+                const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: AppTheme.successColor, size: 14),
+                    SizedBox(width: 6),
+                    Text(
+                      "Active",
+                      style: TextStyle(
+                        color: AppTheme.successColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "Home Tiffin Meal  •  ${order.quantity} Box (${order.deliverySlot.toUpperCase()})",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Subscription Progress",
+                  style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                ),
+                Text(
+                  "$remainingMeals of $totalMeals meals left",
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              height: 6,
+              decoration: BoxDecoration(
+                color: AppTheme.borderLight.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: progressPercent,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+            const Divider(height: 32, color: AppTheme.borderLight),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isTargetSkipped 
+                        ? AppTheme.errorColor.withOpacity(0.06)
+                        : AppTheme.primaryGreen.withOpacity(0.06),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isTargetSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
+                    size: 18,
+                    color: isTargetSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isTargetSkipped
+                            ? "$dayLabel's Delivery Skipped"
+                            : "Scheduled $dayLabel",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: isTargetSkipped ? AppTheme.errorColor : AppTheme.textDark,
+                        ),
+                      ),
+                      Text(
+                        isTargetSkipped
+                            ? "You will not receive tiffin box for $dayLabel's ${order.deliverySlot} slot."
+                            : "Delivered $dayLabel during ${order.deliverySlot.toUpperCase()} slot ($slotTimingText).",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textMuted,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
+                    ? AppTheme.textMuted 
+                    : AppTheme.secondaryMarigold,
+                side: BorderSide(
+                  color: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
+                      ? AppTheme.borderLight 
+                      : AppTheme.secondaryMarigold,
+                  width: 1.2,
+                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                minimumSize: const Size(double.infinity, 44),
+                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              icon: Icon(
+                isTargetSkipped 
+                    ? Icons.check_circle_outline 
+                    : (hasReachedSkipLimit ? Icons.lock_outline : Icons.skip_next_outlined),
+                size: 16,
+              ),
+              label: Text(
+                isTargetSkipped 
+                    ? "Delivery Skipped" 
+                    : (hasReachedSkipLimit ? "Weekly Skip Limit Reached" : "Skip $dayLabel's Delivery"),
+              ),
+              onPressed: (isTargetSkipped || hasReachedSkipLimit)
+                  ? null
+                  : () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext dialogContext) {
+                          return AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Text("Confirm Skip"),
+                            content: Text("Are you sure you want to skip $dayLabel's delivery? Note: This action cannot be undone and you cannot unskip this delivery later."),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext),
+                                child: const Text("Cancel", style: TextStyle(color: AppTheme.textMuted)),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(dialogContext);
+                                  context.read<OrdersCubit>().skipDeliveryDate(order.id, targetSkipDate);
+                                  NotificationOverlay.show(
+                                    context,
+                                    title: "Delivery Skipped",
+                                    message: "Your delivery has been skipped for $dayLabel.",
+                                    icon: Icons.skip_next,
+                                  );
+                                },
+                                child: const Text("Skip", style: TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+            ),
+            const SizedBox(height: 6),
+            Center(
+              child: Text(
+                "Note: Skip requests accepted up to 2 hours before delivery ($cutoffText cutoff)",
+                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
