@@ -145,6 +145,33 @@ class AuthRepository {
     return updatedProfile;
   }
 
+  Future<UserProfile> updatePhone(String phone) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('user_profile');
+    if (cached == null) {
+      throw Exception('No authenticated user found');
+    }
+
+    final current = UserProfile.fromMap(jsonDecode(cached));
+
+    // 1. Update Firestore
+    await _db.docUpdate('users', current.id, {'phone': phone});
+
+    // 2. Refresh local cache
+    final updatedProfile = UserProfile(
+      id: current.id,
+      phone: phone,
+      name: current.name,
+      houseNo: current.houseNo,
+      area: current.area,
+      landmark: current.landmark,
+      isAdmin: current.isAdmin,
+    );
+
+    await prefs.setString('user_profile', jsonEncode(updatedProfile.toMap()));
+    return updatedProfile;
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');

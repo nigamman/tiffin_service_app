@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart';
@@ -20,13 +21,103 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const Color curryGreen = Color(0xFF0F3A20);
+  static const Color turmericGold = Color(0xFFC3A575);
+
   // Local cache to preserve UI during Bloc Loading state transitions
   UserProfile? _user;
+  int _activeTab = 0; // 0 = Subscriptions, 1 = Help & Info
+  bool _phonePromptShown = false;
 
   @override
   void initState() {
     super.initState();
     context.read<OrdersCubit>().loadOrders();
+    // Check after first frame if phone is missing (Google login)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPhoneMissing());
+  }
+
+  void _checkPhoneMissing() {
+    if (_phonePromptShown) return;
+    final authState = context.read<AuthCubit>().state;
+    if (authState is AuthAuthenticated && authState.user.phone.isEmpty) {
+      _phonePromptShown = true;
+      _showPhoneDialog();
+    }
+  }
+
+  void _showPhoneDialog() {
+    final phoneController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.phone_android, color: curryGreen),
+            const SizedBox(width: 8),
+            Text(
+              "Add Phone Number",
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: curryGreen, fontSize: 15),
+            ),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Since you signed in with Google, please enter your phone number so we can contact you about your deliveries.",
+                style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                decoration: InputDecoration(
+                  labelText: "Phone Number",
+                  prefixText: "+91 ",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: curryGreen, width: 2),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return "Phone number is required";
+                  if (v.length != 10) return "Enter a valid 10-digit number";
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text("Skip", style: GoogleFonts.poppins(color: AppTheme.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: curryGreen,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                context.read<AuthCubit>().updatePhone(phoneController.text.trim());
+                Navigator.pop(ctx);
+              }
+            },
+            child: Text("Save", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _detectLocation(
@@ -68,13 +159,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Placemark place = placemarks.first;
       
       // Parse details
-      final house = "${place.subThoroughfare ?? ''} ${place.thoroughfare ?? ''}".trim();
-      final area = "${place.subLocality ?? ''} ${place.locality ?? ''}".trim();
-      final landmark = "${place.name ?? ''} ${place.postalCode ?? ''}".trim();
+      String detectedHouseNo = "";
+      String detectedArea = "";
 
-      houseController.text = house.isNotEmpty ? house : "Plot/House detected";
-      areaController.text = area.isNotEmpty ? area : "Locality detected";
-      landmarkController.text = landmark;
+      // 1. House / Flat No.
+      if (place.name != null && 
+          place.name!.isNotEmpty && 
+          place.name != place.subLocality && 
+          place.name != place.locality) {
+        detectedHouseNo = place.name!;
+      } else if (place.subThoroughfare != null && place.subThoroughfare!.isNotEmpty) {
+        detectedHouseNo = place.subThoroughfare!;
+      }
+
+      // 2. Area / Locality
+      final List<String> addressParts = [];
+      if (place.thoroughfare != null && 
+          place.thoroughfare!.isNotEmpty && 
+          place.thoroughfare != place.name) {
+        addressParts.add(place.thoroughfare!);
+      }
+      if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+        addressParts.add(place.subLocality!);
+      }
+      if (place.locality != null && place.locality!.isNotEmpty) {
+        addressParts.add(place.locality!);
+      }
+      detectedArea = addressParts.isEmpty ? "Locality detected" : addressParts.join(", ");
+
+      houseController.text = detectedHouseNo.isNotEmpty ? detectedHouseNo : "Plot/House detected";
+      areaController.text = detectedArea;
+      landmarkController.text = ""; // Keep empty by default so user can fill in a real landmark
     } else {
       throw Exception("No address details found for your coordinates.");
     }
@@ -238,6 +353,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (context, state) {
           if (state is AuthAuthenticated) {
             _user = state.user;
+            // Trigger phone prompt if it slipped through initState (e.g. state arrives late)
+            WidgetsBinding.instance.addPostFrameCallback((_) => _checkPhoneMissing());
           }
           
           if (_user == null) {
@@ -255,153 +372,311 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Profile Card Header
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 36,
-                          backgroundColor: AppTheme.primaryGreen.withOpacity(0.08),
-                          child: Text(
-                            user.name.isNotEmpty ? user.name[0].toUpperCase() : 'C',
-                            style: const TextStyle(
-                              color: AppTheme.primaryGreen,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: turmericGold, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.015),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                user.name,
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              CircleAvatar(
+                                radius: 32,
+                                backgroundColor: curryGreen,
+                                child: CircleAvatar(
+                                  radius: 30.5,
+                                  backgroundColor: Colors.white,
+                                  child: Text(
+                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'C',
+                                    style: const TextStyle(
+                                      color: curryGreen,
+                                      fontSize: 24,
                                       fontWeight: FontWeight.bold,
                                     ),
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "+91 ${user.phone}",
-                                style: const TextStyle(color: AppTheme.textMuted, fontSize: 14),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user.name,
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: curryGreen,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      "+91 ${user.phone}",
+                                      style: GoogleFonts.poppins(
+                                        color: AppTheme.textMuted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: curryGreen, size: 20),
+                                onPressed: _showEditAddressSheet,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: turmericGold.withOpacity(0.12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Address Section
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Delivery Address",
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                        ),
-                        TextButton.icon(
-                          style: TextButton.styleFrom(foregroundColor: AppTheme.primaryGreen),
-                          icon: const Icon(Icons.edit, size: 16),
-                          label: Text(hasAddress ? "Edit" : "Add"),
-                          onPressed: _showEditAddressSheet,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.borderLight),
-                      ),
-                      child: hasAddress
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user.houseNo,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "${user.area}, Kanpur",
-                                  style: const TextStyle(color: AppTheme.textDark),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "Landmark: ${user.landmark}",
-                                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                                ),
-                              ],
-                            )
-                          : const Text(
-                              "No address configured yet. Tap Edit/Add to set delivery location.",
-                              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                          const Divider(height: 24, color: turmericGold, thickness: 0.8),
+                          Text(
+                            "Delivery Address",
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: curryGreen,
                             ),
+                          ),
+                          const SizedBox(height: 6),
+                          hasAddress
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user.houseNo,
+                                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: AppTheme.textDark, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      user.area,
+                                      style: GoogleFonts.poppins(color: AppTheme.textDark, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      "Landmark: ${user.landmark}",
+                                      style: GoogleFonts.poppins(color: AppTheme.textMuted, fontSize: 12),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  "No address configured yet. Tap edit to set location.",
+                                  style: GoogleFonts.poppins(color: AppTheme.textMuted, fontSize: 12),
+                                ),
+
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      "Manage Subscriptions",
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    BlocBuilder<OrdersCubit, OrdersState>(
-                      builder: (context, ordersState) {
-                        if (ordersState is OrdersLoading) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 20),
-                              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECE7DB),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _activeTab = 0;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _activeTab == 0 ? curryGreen : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: _activeTab == 0
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.05),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : [],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "Subscriptions",
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: _activeTab == 0 ? turmericGold : curryGreen.withOpacity(0.6),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          );
-                        }
-                        if (ordersState is OrdersLoaded) {
-                          final activeSubs = ordersState.activeOrders
-                              .where((o) => o.frequency != 'one-time')
-                              .toList();
-
-                          if (activeSubs.isEmpty) {
-                            return Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppTheme.borderLight),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _activeTab = 1;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _activeTab == 1 ? curryGreen : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: _activeTab == 1
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.05),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : [],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "Help & Info",
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: _activeTab == 1 ? turmericGold : curryGreen.withOpacity(0.6),
+                                    ),
+                                  ),
+                                ),
                               ),
-                              child: const Text(
-                                "No active subscriptions. Subscribe to a plan to manage it here.",
-                                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                              ),
-                            );
-                          }
-
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: activeSubs.length,
-                            itemBuilder: (context, index) {
-                              final order = activeSubs[index];
-                              return _buildSubscriptionManagementCard(context, order);
-                            },
-                          );
-                        }
-                        return const SizedBox();
-                      },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 16),
+                    _activeTab == 0
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Active Subscriptions",
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: curryGreen,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              BlocBuilder<OrdersCubit, OrdersState>(
+                                builder: (context, ordersState) {
+                                  if (ordersState is OrdersLoading) {
+                                    return const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 20),
+                                        child: CircularProgressIndicator(color: curryGreen),
+                                      ),
+                                    );
+                                  }
+                                  if (ordersState is OrdersLoaded) {
+                                    final activeSubs = ordersState.activeOrders
+                                        .where((o) => o.frequency != 'one-time')
+                                        .toList();
 
-                    // Log out
+                                    if (activeSubs.isEmpty) {
+                                      return Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: turmericGold, width: 1.2),
+                                        ),
+                                        child: Text(
+                                          "No active subscriptions. Subscribe to a plan to manage it here.",
+                                          style: GoogleFonts.poppins(color: AppTheme.textMuted, fontSize: 12),
+                                        ),
+                                      );
+                                    }
+
+                                    return ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      itemCount: activeSubs.length,
+                                      itemBuilder: (context, index) {
+                                        final order = activeSubs[index];
+                                        return _buildSubscriptionManagementCard(context, order);
+                                      },
+                                    );
+                                  }
+                                  return const SizedBox();
+                                },
+                              ),
+                            ],
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: turmericGold, width: 1.5),
+                            ),
+                            child: Column(
+                              children: [
+                                _buildTabItem(
+                                  icon: Icons.phone_in_talk,
+                                  title: "Customer Care",
+                                  subtitle: "Call support (+91 9450900700)",
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Calling Customer Care (+91 9450900700)...")),
+                                    );
+                                  },
+                                ),
+                                const Divider(height: 1, color: Color(0xFFE2D6C1)),
+                                _buildTabItem(
+                                  icon: Icons.bug_report,
+                                  title: "Report a Bug",
+                                  subtitle: "Send a bug report to developer",
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Redirecting to bug report screen...")),
+                                    );
+                                  },
+                                ),
+                                const Divider(height: 1, color: Color(0xFFE2D6C1)),
+                                _buildTabItem(
+                                  icon: Icons.star_rate,
+                                  title: "Rate Our App",
+                                  subtitle: "Rate us on Play Store",
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Redirecting to Play Store...")),
+                                    );
+                                  },
+                                ),
+                                const Divider(height: 1, color: Color(0xFFE2D6C1)),
+                                _buildTabItem(
+                                  icon: Icons.share,
+                                  title: "Share App",
+                                  subtitle: "Invite friends and family",
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Opening share panel...")),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                    const SizedBox(height: 32),
                     CustomButton(
                       text: "Log Out",
                       isSecondary: true,
@@ -412,6 +687,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SnackBar(content: Text("Logged out successfully")),
                         );
                       },
+                    ),
+                    const SizedBox(height: 32),
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            "Atithi Bhoj Tiffin Service",
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: curryGreen,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "App Version: 1.0",
+                                style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textMuted),
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                "Developer: nigamman",
+                                style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textMuted, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -521,7 +827,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.borderLight),
+          border: Border.all(color: turmericGold, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.015),
@@ -539,13 +845,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen.withOpacity(0.06),
+                    color: curryGreen.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     "${order.frequency.toUpperCase()} SUBSCRIPTION",
                     style: const TextStyle(
-                      color: AppTheme.primaryGreen,
+                      color: curryGreen,
                       fontWeight: FontWeight.bold,
                       fontSize: 10,
                       letterSpacing: 1.0,
@@ -574,7 +880,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                color: AppTheme.textDark,
+                color: curryGreen,
               ),
             ),
             const SizedBox(height: 12),
@@ -587,7 +893,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 Text(
                   "$remainingMeals of $totalMeals meals left",
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: curryGreen),
                 ),
               ],
             ),
@@ -596,7 +902,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: double.infinity,
               height: 6,
               decoration: BoxDecoration(
-                color: AppTheme.borderLight.withOpacity(0.5),
+                color: turmericGold.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(3),
               ),
               child: FractionallySizedBox(
@@ -604,13 +910,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 widthFactor: progressPercent,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen,
+                    color: curryGreen,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
             ),
-            const Divider(height: 32, color: AppTheme.borderLight),
+            const Divider(height: 32, color: Color(0xFFE2D6C1)),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -619,13 +925,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: isTargetSkipped 
                         ? AppTheme.errorColor.withOpacity(0.06)
-                        : AppTheme.primaryGreen.withOpacity(0.06),
+                        : curryGreen.withOpacity(0.06),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     isTargetSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
                     size: 18,
-                    color: isTargetSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
+                    color: isTargetSkipped ? AppTheme.errorColor : curryGreen,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -640,7 +946,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: isTargetSkipped ? AppTheme.errorColor : AppTheme.textDark,
+                          color: isTargetSkipped ? AppTheme.errorColor : curryGreen,
                         ),
                       ),
                       Text(
@@ -663,11 +969,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
                     ? AppTheme.textMuted 
-                    : AppTheme.secondaryMarigold,
+                    : turmericGold,
                 side: BorderSide(
                   color: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
                       ? AppTheme.borderLight 
-                      : AppTheme.secondaryMarigold,
+                      : turmericGold,
                   width: 1.2,
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -729,6 +1035,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTabItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: curryGreen.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: curryGreen, size: 20),
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textMuted),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: turmericGold, size: 18),
+      onTap: onTap,
     );
   }
 }

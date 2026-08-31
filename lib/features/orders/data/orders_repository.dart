@@ -123,14 +123,19 @@ class OrderModel {
     if (orderStatus == 'cancelled') return false;
     final now = DateTime.now();
     final todayNormalized = DateTime(now.year, now.month, now.day);
-    final startNormalized = DateTime(startDate.year, startDate.month, startDate.day);
+
+    // Normalize startDate to local date only (strip time/timezone)
+    final startLocal = startDate.toLocal();
+    final startNormalized = DateTime(startLocal.year, startLocal.month, startLocal.day);
 
     if (todayNormalized.isBefore(startNormalized)) return false;
 
     // Check skipped dates
-    final isSkipped = skippedDates.any((d) =>
-      DateTime(d.year, d.month, d.day).isAtSameMomentAs(todayNormalized)
-    );
+    final isSkipped = skippedDates.any((d) {
+      final dLocal = d.toLocal();
+      return DateTime(dLocal.year, dLocal.month, dLocal.day)
+          .isAtSameMomentAs(todayNormalized);
+    });
     if (isSkipped) return false;
 
     if (frequency == 'one-time') {

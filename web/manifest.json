@@ -1,6 +1,6 @@
 {
-    "name": "tiffin_service_app",
-    "short_name": "tiffin_service_app",
+    "name": "Atithi Bhoj Tiffin Service",
+    "short_name": "Atithi Bhoj Tiffin Service",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

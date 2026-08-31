@@ -823,13 +823,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showNotificationsSheet(BuildContext context) async {
     final authState = context.read<AuthCubit>().state;
     final String? userPhone = authState is AuthAuthenticated ? authState.user.phone : null;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return DraggableScrollableSheet(
@@ -838,59 +838,149 @@ class _HomeScreenState extends State<HomeScreen> {
           minChildSize: 0.4,
           expand: false,
           builder: (context, scrollController) {
-            return FutureBuilder<List<Map<String, dynamic>>>(
-              future: FirebaseService.instance.collectionGet('notifications').then((list) {
-                // Filter notifications
-                final filtered = list.where((n) {
-                  final target = n['target'] ?? 'all';
-                  return target == 'all' || (userPhone != null && target == userPhone);
-                }).toList();
-                
-                // Sort by createdAt descending
-                filtered.sort((a, b) {
-                  final aTime = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime.now();
-                  final bTime = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime.now();
-                  return bTime.compareTo(aTime);
-                });
-                return filtered;
-              }),
-              builder: (context, snapshot) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppTheme.borderLight,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
+            return StatefulBuilder(
+              builder: (context, setSheetState) {
+                const curryGreen = Color(0xFF0F3A20);
+                const turmericGold = Color(0xFFC3A575);
+                const creamBg = Color(0xFFF7F4EB);
+                // Locally dismissed notification IDs
+                final Set<String> dismissed = {};
+
+                return FutureBuilder<List<Map<String, dynamic>>>(
+                  future: FirebaseService.instance.collectionGet('notifications').then((list) {
+                    final filtered = list.where((n) {
+                      final target = n['target'] ?? 'all';
+                      return target == 'all' || (userPhone != null && target == userPhone);
+                    }).toList();
+                    filtered.sort((a, b) {
+                      final aTime = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime.now();
+                      final bTime = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime.now();
+                      return bTime.compareTo(aTime);
+                    });
+                    return filtered;
+                  }),
+                  builder: (context, snapshot) {
+                    final allNotifications = snapshot.data ?? [];
+                    final visible = allNotifications
+                        .where((n) => !dismissed.contains(n['id'] ?? n['title']))
+                        .toList();
+
+                    return Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF7F4EB),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                       ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "Announcements & Alerts",
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
+                          // Styled header with gradient
+                          Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [curryGreen, Color(0xFF1A5C34)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                            child: Column(
+                              children: [
+                                // Drag handle
+                                Center(
+                                  child: Container(
+                                    width: 40,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.35),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.15),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.notifications_active, color: turmericGold, size: 20),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Announcements & Alerts",
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              "${visible.length} notification${visible.length == 1 ? '' : 's'}",
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 11,
+                                                color: Colors.white.withOpacity(0.65),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    if (visible.isNotEmpty)
+                                      GestureDetector(
+                                        onTap: () {
+                                          setSheetState(() {
+                                            dismissed.addAll(
+                                              allNotifications.map((n) => (n['id'] ?? n['title']).toString()),
+                                            );
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: turmericGold.withOpacity(0.6)),
+                                          ),
+                                          child: Text(
+                                            "Clear All",
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: turmericGold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                          const Icon(Icons.notifications_active, color: AppTheme.secondaryMarigold),
+                          // Notifications list
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                              child: _buildNotificationsList(
+                                snapshot,
+                                scrollController,
+                                dismissed,
+                                (id) => setSheetState(() => dismissed.add(id)),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: _buildNotificationsList(snapshot, scrollController),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             );
@@ -903,17 +993,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildNotificationsList(
     AsyncSnapshot<List<Map<String, dynamic>>> snapshot,
     ScrollController scrollController,
+    Set<String> dismissed,
+    void Function(String id) onDismiss,
   ) {
     if (snapshot.connectionState == ConnectionState.waiting) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
     }
-    
+
     if (snapshot.hasError) {
       return Center(child: Text("Error: ${snapshot.error}"));
     }
-    
-    final notifications = snapshot.data ?? [];
-    
+
+    final allNotifications = snapshot.data ?? [];
+    final notifications = allNotifications
+        .where((n) => !dismissed.contains(n['id'] ?? n['title']))
+        .toList();
+
     if (notifications.isEmpty) {
       return Center(
         child: Column(
@@ -946,15 +1041,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-    
+
     return ListView.builder(
       controller: scrollController,
       itemCount: notifications.length,
       itemBuilder: (context, index) {
         final item = notifications[index];
+        final id = (item['id'] ?? item['title'] ?? '$index').toString();
         final title = item['title'] ?? 'Alert';
         final message = item['message'] ?? '';
-        
+
+        const curryGreen = Color(0xFF0F3A20);
+        const turmericGold = Color(0xFFC3A575);
+
         final timeRaw = item['createdAt'] ?? '';
         String timeFormatted = '';
         try {
@@ -962,39 +1061,132 @@ class _HomeScreenState extends State<HomeScreen> {
           timeFormatted = DateFormat('dd MMM, hh:mm a').format(timeParsed);
         } catch (_) {}
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.campaign, color: AppTheme.primaryGreen),
+        return Dismissible(
+          key: Key(id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.errorColor,
+              borderRadius: BorderRadius.circular(16),
             ),
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textDark),
-                  ),
-                ),
-                Text(
-                  timeFormatted,
-                  style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                Icon(Icons.delete_outline, color: Colors.white, size: 22),
+                SizedBox(height: 4),
+                Text("Remove", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          onDismissed: (_) => onDismiss(id),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: turmericGold.withOpacity(0.4)),
+              boxShadow: [
+                BoxShadow(
+                  color: curryGreen.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: Text(
-                message,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textDark),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Icon badge
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [curryGreen, Color(0xFF1A5C34)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: curryGreen,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // Dismiss ×
+                            GestureDetector(
+                              onTap: () => onDismiss(id),
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF0EDE8),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: turmericGold.withOpacity(0.4)),
+                                ),
+                                child: const Icon(Icons.close, size: 12, color: Color(0xFF8B7355)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          message,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppTheme.textMuted,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Timestamp chip
+                        if (timeFormatted.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: turmericGold.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: turmericGold.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.access_time_rounded, size: 10, color: turmericGold.withOpacity(0.8)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  timeFormatted,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    color: const Color(0xFF8B7355),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
