@@ -838,13 +838,13 @@ class _HomeScreenState extends State<HomeScreen> {
           minChildSize: 0.4,
           expand: false,
           builder: (context, scrollController) {
+            // Declared OUTSIDE builder so it persists across setSheetState() rebuilds
+            final Set<String> dismissed = {};
             return StatefulBuilder(
               builder: (context, setSheetState) {
                 const curryGreen = Color(0xFF0F3A20);
                 const turmericGold = Color(0xFFC3A575);
                 const creamBg = Color(0xFFF7F4EB);
-                // Locally dismissed notification IDs
-                final Set<String> dismissed = {};
 
                 return FutureBuilder<List<Map<String, dynamic>>>(
                   future: FirebaseService.instance.collectionGet('notifications').then((list) {
