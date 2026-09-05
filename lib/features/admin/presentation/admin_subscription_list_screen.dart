@@ -21,7 +21,8 @@ class _AdminSubscriptionListScreenState extends State<AdminSubscriptionListScree
   
   List<OrderModel> _subscriptions = [];
   Map<String, String> _userNames = {}; // Map phone -> user name or user id -> name
-  
+  Map<String, String> _userAddresses = {}; // Map phone/id -> user address
+
   String _searchQuery = '';
   String _filter = 'active'; // 'active', 'completed_cancelled', 'all'
 
@@ -42,24 +43,34 @@ class _AdminSubscriptionListScreenState extends State<AdminSubscriptionListScree
       // Filter out non-recurring ones if needed, but we keep recurring ones since those are subscriptions
       final recurringOnly = allOrders.where((o) => o.frequency != 'one-time').toList();
 
-      // 2. Load users to match names
+      // 2. Load users to match names and addresses
       final usersList = await _db.collectionGet('users');
       final Map<String, String> nameMap = {};
+      final Map<String, String> addrMap = {};
       for (final u in usersList) {
         final phone = u['phone'] ?? '';
         final name = u['name'] ?? '';
-        if (phone.isNotEmpty && name.isNotEmpty) {
-          nameMap[phone] = name;
-        }
         final id = u['id'] ?? '';
-        if (id.isNotEmpty && name.isNotEmpty) {
-          nameMap[id] = name;
+        
+        final houseNo = u['houseNo'] ?? '';
+        final area = u['area'] ?? '';
+        final landmark = u['landmark'] ?? '';
+        final fullAddr = [houseNo, area, landmark].where((s) => (s as String).isNotEmpty).join(', ');
+
+        if (phone.isNotEmpty) {
+          if (name.isNotEmpty) nameMap[phone] = name;
+          if (fullAddr.isNotEmpty) addrMap[phone] = fullAddr;
+        }
+        if (id.isNotEmpty) {
+          if (name.isNotEmpty) nameMap[id] = name;
+          if (fullAddr.isNotEmpty) addrMap[id] = fullAddr;
         }
       }
 
       setState(() {
         _subscriptions = recurringOnly;
         _userNames = nameMap;
+        _userAddresses = addrMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -398,6 +409,17 @@ class _AdminSubscriptionListScreenState extends State<AdminSubscriptionListScree
                   _buildDetailRow(Icons.timelapse_outlined, "Days Active", daysElapsed < 0 ? "Not started yet" : "$daysElapsed days"),
                   _buildDetailRow(Icons.layers_outlined, "Quantity", "x${sub.quantity} box(es) per slot"),
                   _buildDetailRow(Icons.currency_rupee, "Price Paid", "₹${sub.finalAmount.toStringAsFixed(2)}"),
+                  _buildDetailRow(
+                    Icons.location_on_outlined,
+                    "Delivery Address",
+                    () {
+                      final orderParts = [sub.houseNo, sub.area, sub.landmark].where((s) => s.isNotEmpty).join(', ');
+                      if (orderParts.isNotEmpty) return orderParts;
+                      final userAddr = _userAddresses[sub.contactPhone];
+                      if (userAddr != null && userAddr.isNotEmpty) return userAddr;
+                      return "Address not specified (Kalyanpur Zone)";
+                    }(),
+                  ),
                   
                   const SizedBox(height: 12),
                   

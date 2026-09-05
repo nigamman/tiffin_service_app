@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/admin_repository.dart';
 import '../../orders/data/orders_repository.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/firebase_service.dart';
 
 class AdminOrderList extends StatefulWidget {
   const AdminOrderList({Key? key}) : super(key: key);
@@ -16,6 +17,7 @@ class _AdminOrderListState extends State<AdminOrderList> {
   final OrdersRepository _ordersRepository = OrdersRepository();
   bool _isLoading = true;
   List<OrderModel> _orders = [];
+  Map<String, Map<String, String>> _userProfiles = {};
   String? _error;
   String _filter = 'all'; // 'all', 'today', 'tomorrow'
 
@@ -32,8 +34,25 @@ class _AdminOrderListState extends State<AdminOrderList> {
     });
     try {
       final list = await _ordersRepository.adminGetAllOrders();
+      
+      // Fetch user profiles for address fallback on legacy orders
+      final usersList = await FirebaseService.instance.collectionGet('users');
+      final Map<String, Map<String, String>> profileMap = {};
+      for (final u in usersList) {
+        final phone = (u['phone'] ?? '').toString();
+        final id = (u['id'] ?? '').toString();
+        final Map<String, String> addr = {
+          'houseNo': (u['houseNo'] ?? '').toString(),
+          'area': (u['area'] ?? '').toString(),
+          'landmark': (u['landmark'] ?? '').toString(),
+        };
+        if (phone.isNotEmpty) profileMap[phone] = addr;
+        if (id.isNotEmpty) profileMap[id] = addr;
+      }
+
       setState(() {
         _orders = list;
+        _userProfiles = profileMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -42,6 +61,27 @@ class _AdminOrderListState extends State<AdminOrderList> {
         _isLoading = false;
       });
     }
+  }
+
+  String _getDeliveryAddress(OrderModel order) {
+    String houseNo = order.houseNo;
+    String area = order.area;
+    String landmark = order.landmark;
+
+    if (houseNo.isEmpty && area.isEmpty) {
+      final profile = _userProfiles[order.contactPhone];
+      if (profile != null) {
+        houseNo = profile['houseNo'] ?? '';
+        area = profile['area'] ?? '';
+        landmark = profile['landmark'] ?? '';
+      }
+    }
+
+    final parts = [houseNo, area, landmark].where((s) => s.isNotEmpty).toList();
+    if (parts.isNotEmpty) {
+      return parts.join(', ');
+    }
+    return "Address not specified (Kalyanpur Zone)";
   }
 
   void _cancelOrder(String id) async {
@@ -305,6 +345,21 @@ class _AdminOrderListState extends State<AdminOrderList> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text("Deliver Phone: +91 ${order.contactPhone}", style: const TextStyle(fontSize: 13)),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.primaryGreen),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              "Address: ${_getDeliveryAddress(order)}",
+                                              style: const TextStyle(fontSize: 13, color: AppTheme.textDark, fontWeight: FontWeight.w500),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
                                       Text("Start date: $startDateFormatted • Slot: ${order.deliverySlot.toUpperCase()}", style: const TextStyle(fontSize: 13)),
                                       Text("Skips: ${order.skippedDates.length} meals skipped", style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
                                       if (order.frequency != 'one-time') ...[

@@ -9,6 +9,9 @@ class OrderModel {
   final DateTime startDate;
   final String deliverySlot;
   final String contactPhone;
+  final String houseNo;
+  final String area;
+  final String landmark;
   final double pricePerMeal;
   final int mealsCount;
   final double totalAmount;
@@ -29,6 +32,9 @@ class OrderModel {
     required this.startDate,
     required this.deliverySlot,
     required this.contactPhone,
+    required this.houseNo,
+    required this.area,
+    required this.landmark,
     required this.pricePerMeal,
     required this.mealsCount,
     required this.totalAmount,
@@ -230,6 +236,9 @@ class OrderModel {
       startDate: DateTime.parse(map['startDate']),
       deliverySlot: map['deliverySlot'] ?? 'lunch',
       contactPhone: map['contactPhone'] ?? '',
+      houseNo: map['houseNo'] ?? '',
+      area: map['area'] ?? '',
+      landmark: map['landmark'] ?? '',
       pricePerMeal: (map['pricePerMeal'] as num?)?.toDouble() ?? 80.0,
       mealsCount: map['mealsCount'] ?? 1,
       totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 80.0,
@@ -253,6 +262,9 @@ class OrderModel {
       'startDate': startDate.toIso8601String(),
       'deliverySlot': deliverySlot,
       'contactPhone': contactPhone,
+      'houseNo': houseNo,
+      'area': area,
+      'landmark': landmark,
       'pricePerMeal': pricePerMeal,
       'mealsCount': mealsCount,
       'totalAmount': totalAmount,
