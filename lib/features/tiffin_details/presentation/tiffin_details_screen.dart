@@ -295,9 +295,9 @@ class _TiffinDetailsScreenState extends State<TiffinDetailsScreen> {
                         'assets/img/lunch_plate.png',
                         fit: BoxFit.contain, // Keeps entire plate visible
                       )
-                    : Image.network(
-                        widget.menu.imageUrl,
-                        fit: BoxFit.contain,
+                    : Image.asset(
+                        'assets/img/evening_plate.png',
+                        fit: BoxFit.contain, // Keeps entire plate visible
                         errorBuilder: (context, error, stackTrace) => Container(
                           color: const Color(0xFFF5EFE3),
                           child: const Icon(

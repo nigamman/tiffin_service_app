@@ -227,7 +227,7 @@ class _FeatureCardBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFFAF6EE).withOpacity(0.92),
         borderRadius: BorderRadius.circular(24),
@@ -253,7 +253,7 @@ class _FeatureCardBox extends StatelessWidget {
                   const Icon(
                     Icons.home_outlined,
                     color: AtithiColors.textGold,
-                    size: 28,
+                    size: 30,
                   ),
                   Positioned(
                     bottom: 9,
@@ -268,7 +268,7 @@ class _FeatureCardBox extends StatelessWidget {
                     child: Icon(
                       Icons.favorite,
                       color: AtithiColors.textGold,
-                      size: 10,
+                      size: 11,
                     ),
                   ),
                 ],
@@ -282,7 +282,7 @@ class _FeatureCardBox extends StatelessWidget {
               iconWidget: const Icon(
                 Icons.spa,
                 color: AtithiColors.curryGreen,
-                size: 26,
+                size: 28,
               ),
               label: 'FRESH &\nHYGIENIC',
             ),
@@ -293,7 +293,7 @@ class _FeatureCardBox extends StatelessWidget {
               iconWidget: const Icon(
                 Icons.access_time_filled_rounded,
                 color: AtithiColors.curryGreen,
-                size: 26,
+                size: 28,
               ),
               label: 'TIMELY\nDELIVERY',
             ),
@@ -306,7 +306,7 @@ class _FeatureCardBox extends StatelessWidget {
   Widget _buildDivider() {
     return Container(
       width: 1,
-      height: 60,
+      height: 76,
       color: AtithiColors.turmericGold.withOpacity(0.3),
     );
   }
@@ -319,8 +319,8 @@ class _FeatureCardBox extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 52,
-          height: 52,
+          width: 58,
+          height: 58,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
@@ -332,22 +332,22 @@ class _FeatureCardBox extends StatelessWidget {
           alignment: Alignment.center,
           child: iconWidget,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(
-            fontSize: 10,
+            fontSize: 10.5,
             fontWeight: FontWeight.bold,
             color: AtithiColors.curryGreen,
             letterSpacing: 0.5,
             height: 1.2,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Image.asset(
           'assets/welcome_page/bg5_line.png',
-          width: 32,
+          width: 36,
           fit: BoxFit.contain,
         ),
       ],

@@ -428,14 +428,14 @@ class _HomeScreenState extends State<HomeScreen> {
         : null;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.035),
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
@@ -444,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // Circular Icon
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.08),
               shape: BoxShape.circle,
@@ -455,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
               size: 24,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             title,
             style: GoogleFonts.poppins(
@@ -464,13 +464,13 @@ class _HomeScreenState extends State<HomeScreen> {
               color: AppTheme.textDark,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               time,
               style: GoogleFonts.poppins(
-                fontSize: 10,
+                fontSize: 11,
                 color: AppTheme.textMuted,
                 fontWeight: FontWeight.w600,
               ),
@@ -482,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen> {
               final countdownText = _getCutoffCountdown(isLunch);
               final isClosed = countdownText == "Closed for Today";
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isClosed 
                       ? AppTheme.errorColor.withOpacity(0.08) 
@@ -494,7 +494,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text(
                     countdownText,
                     style: GoogleFonts.poppins(
-                      fontSize: 9,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.bold,
                       color: isClosed ? AppTheme.errorColor : AppTheme.primaryGreen,
                     ),
@@ -503,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           
           // Order Now button
           SizedBox(
@@ -541,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text(
                 "Order Now",
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1233,7 +1233,7 @@ class _BannerSliderState extends State<BannerSlider> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 175, // Fits the cooking illustration nicely
+      height: 210, // Increased height so full illustration is visible without clipping
       child: PageView(
         controller: _pageController,
         onPageChanged: (page) {
@@ -1283,7 +1283,7 @@ class _BannerSliderState extends State<BannerSlider> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(22, 22, 16, 18),
       decoration: BoxDecoration(
         color: cardBgColor,
         gradient: cardGradient,
@@ -1313,17 +1313,17 @@ class _BannerSliderState extends State<BannerSlider> {
               Text(
                 title,
                 style: GoogleFonts.poppins(
-                  fontSize: 20,
+                  fontSize: 21,
                   fontWeight: FontWeight.bold,
                   color: titleColor,
                   height: 1.25,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 subtitle,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 12.5,
                   color: subtitleColor,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
@@ -1334,7 +1334,7 @@ class _BannerSliderState extends State<BannerSlider> {
           Row(
             children: List.generate(2, (index) {
               return Container(
-                width: index == _currentPage ? 12 : 6,
+                width: index == _currentPage ? 14 : 6,
                 height: 6,
                 margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(

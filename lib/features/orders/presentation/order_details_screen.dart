@@ -30,9 +30,6 @@ class _OrderDetailsView extends StatefulWidget {
 }
 
 class _OrderDetailsViewState extends State<_OrderDetailsView> {
-  int _activeStage = 0;
-  bool _isManualOverride = false;
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<OrdersCubit, OrdersState>(
@@ -50,9 +47,7 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
             orElse: () => state.orderHistory.firstWhere((o) => o.id == widget.orderId),
           );
 
-          if (!_isManualOverride) {
-            _activeStage = order.todayActiveStage;
-          }
+          final int activeStage = order.todayActiveStage;
 
           final now = DateTime.now();
           final todayNormalized = DateTime(now.year, now.month, now.day);
@@ -161,15 +156,18 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
                           "Order ID: #${order.id.toUpperCase().substring(order.id.length - 6)}",
                           style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                         ),
-                        const Divider(height: 32, color: AppTheme.borderLight),
-                        Text(
-                          "Home Tiffin Meal  •  ${order.quantity} Box",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Delivery Slot: ${order.deliverySlot.toUpperCase()} (${order.deliverySlot == 'lunch' ? '11:30 AM - 1:30 PM' : order.deliverySlot == 'dinner' ? '7:00 PM - 9:00 PM' : 'Lunch & Dinner'})",
-                          style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                        const Divider(height: 24, color: AppTheme.borderLight),
+                        _buildInfoRow(Icons.restaurant_menu_outlined, "Order Name", "Home Tiffin Meal (${order.quantity} Box)"),
+                        _buildInfoRow(Icons.calendar_today_outlined, "Order Date", DateFormat('dd MMM yyyy').format(order.startDate)),
+                        _buildInfoRow(Icons.access_time_outlined, "Delivery Slot", "${order.deliverySlot.toUpperCase()} (${order.deliverySlot == 'lunch' ? '11:30 AM - 1:30 PM' : order.deliverySlot == 'dinner' ? '7:00 PM - 9:00 PM' : 'Lunch & Dinner'})"),
+                        _buildInfoRow(Icons.phone_outlined, "Phone No", "+91 ${order.contactPhone}"),
+                        _buildInfoRow(Icons.currency_rupee_outlined, "Total Amount", "₹${order.finalAmount.toStringAsFixed(0)}"),
+                        _buildInfoRow(
+                          Icons.location_on_outlined,
+                          "Address",
+                          [order.houseNo, order.area, order.landmark].where((s) => s.isNotEmpty).join(', ').isEmpty
+                              ? "Kalyanpur, Kanpur"
+                              : [order.houseNo, order.area, order.landmark].where((s) => s.isNotEmpty).join(', '),
                         ),
                       ],
                     ),
@@ -233,7 +231,7 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
                                     return AnimatedContainer(
                                       duration: const Duration(milliseconds: 1000),
                                       curve: Curves.easeInOutQuad,
-                                      width: constraints.maxWidth * (_activeStage / 3.0),
+                                      width: constraints.maxWidth * (activeStage / 3.0),
                                       height: 4,
                                       decoration: BoxDecoration(
                                         color: AppTheme.primaryGreen,
@@ -245,7 +243,7 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: List.generate(4, (index) {
-                                    final isCompleted = index <= _activeStage;
+                                    final isCompleted = index <= activeStage;
                                     return Container(
                                       width: 12,
                                       height: 12,
@@ -267,7 +265,7 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
                                       child: AnimatedAlign(
                                         duration: const Duration(milliseconds: 1000),
                                         curve: Curves.easeInOutQuad,
-                                        alignment: Alignment(-1.0 + (2.0 * (_activeStage / 3.0)), 0.0),
+                                        alignment: Alignment(-1.0 + (2.0 * (activeStage / 3.0)), 0.0),
                                         child: Container(
                                           transform: Matrix4.translationValues(0, -2, 0),
                                           padding: const EdgeInsets.all(6),
@@ -298,38 +296,11 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                _buildTrackNodeLabel("Placed", 0),
-                                _buildTrackNodeLabel("Preparing", 1),
-                                _buildTrackNodeLabel("Out for Delivery", 2),
-                                _buildTrackNodeLabel("Delivered", 3),
+                                _buildTrackNodeLabel("Placed", 0, activeStage),
+                                _buildTrackNodeLabel("Preparing", 1, activeStage),
+                                _buildTrackNodeLabel("Out for Delivery", 2, activeStage),
+                                _buildTrackNodeLabel("Delivered", 3, activeStage),
                               ],
-                            ),
-                            const SizedBox(height: 24),
-                            // Simulated tracker button options
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF7F6F0),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    "Simulate Delivery Tracking Status",
-                                    style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textMuted),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      _buildSimulateButton("Placed", 0),
-                                      _buildSimulateButton("Preparing", 1),
-                                      _buildSimulateButton("On Way", 2),
-                                      _buildSimulateButton("Delivered", 3),
-                                    ],
-                                  ),
-                                ],
-                              ),
                             ),
                           ],
                         ],
@@ -488,9 +459,9 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
     );
   }
 
-  Widget _buildTrackNodeLabel(String text, int stageIndex) {
-    final isActive = _activeStage == stageIndex;
-    final isCompleted = _activeStage >= stageIndex;
+  Widget _buildTrackNodeLabel(String text, int stageIndex, int activeStage) {
+    final isActive = activeStage == stageIndex;
+    final isCompleted = activeStage >= stageIndex;
     return Text(
       text,
       style: GoogleFonts.poppins(
@@ -503,30 +474,36 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
     );
   }
 
-  Widget _buildSimulateButton(String text, int targetStage) {
-    final isCurrent = _activeStage == targetStage;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _isManualOverride = true;
-          _activeStage = targetStage;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isCurrent ? AppTheme.primaryGreen : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.borderLight),
-        ),
-        child: Text(
-          text,
-          style: GoogleFonts.poppins(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            color: isCurrent ? Colors.white : AppTheme.textDark,
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppTheme.primaryGreen),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 105,
+            child: Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: AppTheme.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
-        ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: AppTheme.textDark,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
