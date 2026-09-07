@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/firebase_service.dart';
 import 'menu_cubit.dart';
 import '../data/menu_repository.dart';
@@ -24,10 +25,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Timer? _countdownTimer;
+  Set<String> _dismissedNotificationIds = {};
 
   @override
   void initState() {
     super.initState();
+    _loadDismissedNotifications();
     // Dispatch loading of menu and user orders at startup
     context.read<MenuCubit>().loadMenu();
     final authState = context.read<AuthCubit>().state;
@@ -41,6 +44,32 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {});
       }
     });
+  }
+
+  Future<void> _loadDismissedNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('dismissed_notifications') ?? [];
+    if (mounted) {
+      setState(() {
+        _dismissedNotificationIds = list.toSet();
+      });
+    }
+  }
+
+  Future<void> _dismissNotification(String id) async {
+    setState(() {
+      _dismissedNotificationIds.add(id);
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('dismissed_notifications', _dismissedNotificationIds.toList());
+  }
+
+  Future<void> _dismissAllNotifications(List<String> ids) async {
+    setState(() {
+      _dismissedNotificationIds.addAll(ids);
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('dismissed_notifications', _dismissedNotificationIds.toList());
   }
 
   @override
@@ -182,10 +211,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       bool showBadge = false;
                       if (snapshot.hasData) {
                         final count = snapshot.data!.docs.where((doc) {
-                          final target = doc.data() is Map && (doc.data() as Map).containsKey('target')
-                              ? doc.get('target')
-                              : 'all';
-                          return target == 'all' || (userPhone != null && target == userPhone);
+                          final data = doc.data() as Map<String, dynamic>? ?? {};
+                          final target = data['target'] ?? 'all';
+                          final id = (data['id'] ?? doc.id).toString();
+                          final title = (data['title'] ?? '').toString();
+                          final isTargeted = target == 'all' || (userPhone != null && target == userPhone);
+                          final isDismissed = _dismissedNotificationIds.contains(id) || _dismissedNotificationIds.contains(title);
+                          return isTargeted && !isDismissed;
                         }).length;
                         showBadge = count > 0;
                       }
@@ -838,13 +870,11 @@ class _HomeScreenState extends State<HomeScreen> {
           minChildSize: 0.4,
           expand: false,
           builder: (context, scrollController) {
-            // Declared OUTSIDE builder so it persists across setSheetState() rebuilds
-            final Set<String> dismissed = {};
+            final Set<String> animatingOutIds = {};
             return StatefulBuilder(
               builder: (context, setSheetState) {
                 const curryGreen = Color(0xFF0F3A20);
                 const turmericGold = Color(0xFFC3A575);
-                const creamBg = Color(0xFFF7F4EB);
 
                 return FutureBuilder<List<Map<String, dynamic>>>(
                   future: FirebaseService.instance.collectionGet('notifications').then((list) {
@@ -862,7 +892,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context, snapshot) {
                     final allNotifications = snapshot.data ?? [];
                     final visible = allNotifications
-                        .where((n) => !dismissed.contains(n['id'] ?? n['title']))
+                        .where((n) => !_dismissedNotificationIds.contains((n['id'] ?? n['title']).toString()))
                         .toList();
 
                     return Container(
@@ -937,10 +967,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                     if (visible.isNotEmpty)
                                       GestureDetector(
                                         onTap: () {
+                                          final idsToDismiss = visible
+                                              .map((n) => (n['id'] ?? n['title']).toString())
+                                              .toList();
                                           setSheetState(() {
-                                            dismissed.addAll(
-                                              allNotifications.map((n) => (n['id'] ?? n['title']).toString()),
-                                            );
+                                            animatingOutIds.addAll(idsToDismiss);
+                                          });
+                                          Future.delayed(const Duration(milliseconds: 280), () {
+                                            _dismissAllNotifications(idsToDismiss);
                                           });
                                         },
                                         child: Container(
@@ -972,8 +1006,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: _buildNotificationsList(
                                 snapshot,
                                 scrollController,
-                                dismissed,
-                                (id) => setSheetState(() => dismissed.add(id)),
+                                _dismissedNotificationIds,
+                                animatingOutIds,
+                                setSheetState,
+                                (id) => _dismissNotification(id),
                               ),
                             ),
                           ),
@@ -994,6 +1030,8 @@ class _HomeScreenState extends State<HomeScreen> {
     AsyncSnapshot<List<Map<String, dynamic>>> snapshot,
     ScrollController scrollController,
     Set<String> dismissed,
+    Set<String> animatingOutIds,
+    StateSetter setSheetState,
     void Function(String id) onDismiss,
   ) {
     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1006,7 +1044,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final allNotifications = snapshot.data ?? [];
     final notifications = allNotifications
-        .where((n) => !dismissed.contains(n['id'] ?? n['title']))
+        .where((n) => !dismissed.contains((n['id'] ?? n['title']).toString()))
         .toList();
 
     if (notifications.isEmpty) {
@@ -1061,6 +1099,8 @@ class _HomeScreenState extends State<HomeScreen> {
           timeFormatted = DateFormat('dd MMM, hh:mm a').format(timeParsed);
         } catch (_) {}
 
+        final isDismissing = animatingOutIds.contains(id);
+
         return Dismissible(
           key: Key(id),
           direction: DismissDirection.endToStart,
@@ -1082,111 +1122,134 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           onDismissed: (_) => onDismiss(id),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: turmericGold.withOpacity(0.4)),
-              boxShadow: [
-                BoxShadow(
-                  color: curryGreen.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Icon badge
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [curryGreen, Color(0xFF1A5C34)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 18),
-                  ),
-                  const SizedBox(width: 12),
-                  // Content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: curryGreen,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            // Dismiss ×
-                            GestureDetector(
-                              onTap: () => onDismiss(id),
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF0EDE8),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: turmericGold.withOpacity(0.4)),
-                                ),
-                                child: const Icon(Icons.close, size: 12, color: Color(0xFF8B7355)),
-                              ),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOutCubic,
+            child: AnimatedSlide(
+              offset: isDismissing ? const Offset(1.2, 0) : Offset.zero,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              child: AnimatedOpacity(
+                opacity: isDismissing ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: isDismissing
+                    ? const SizedBox(height: 0, width: double.infinity)
+                    : Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: turmericGold.withOpacity(0.4)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: curryGreen.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          message,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppTheme.textMuted,
-                            height: 1.4,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Icon badge
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [curryGreen, Color(0xFF1A5C34)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              // Content
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            title,
+                                            style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: curryGreen,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        // Dismiss ×
+                                        GestureDetector(
+                                          onTap: () {
+                                            if (animatingOutIds.contains(id)) return;
+                                            setSheetState(() {
+                                              animatingOutIds.add(id);
+                                            });
+                                            Future.delayed(const Duration(milliseconds: 250), () {
+                                              onDismiss(id);
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF0EDE8),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: turmericGold.withOpacity(0.4)),
+                                            ),
+                                            child: const Icon(Icons.close, size: 12, color: Color(0xFF8B7355)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      message,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: AppTheme.textMuted,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // Timestamp chip
+                                    if (timeFormatted.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: turmericGold.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(color: turmericGold.withOpacity(0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.access_time_rounded, size: 11, color: turmericGold),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              timeFormatted,
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                                color: const Color(0xFF8B7355),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        // Timestamp chip
-                        if (timeFormatted.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: turmericGold.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: turmericGold.withOpacity(0.3)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.access_time_rounded, size: 10, color: turmericGold.withOpacity(0.8)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  timeFormatted,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 10,
-                                    color: const Color(0xFF8B7355),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
               ),
             ),
           ),

@@ -14,9 +14,11 @@ class AppTheme {
   static const Color borderLight = Color(0xFFE0DCD6);
 
   static ThemeData get lightTheme {
+    final baseTextTheme = ThemeData.light().textTheme;
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: GoogleFonts.poppins().fontFamily,
       primaryColor: primaryGreen,
       colorScheme: const ColorScheme.light(
         primary: primaryGreen,
@@ -40,7 +42,7 @@ class AppTheme {
         margin: EdgeInsets.zero,
       ),
       // Consistent Typography throughout using Poppins font
-      textTheme: TextTheme(
+      textTheme: GoogleFonts.poppinsTextTheme(baseTextTheme).copyWith(
         displayLarge: GoogleFonts.poppins(
           fontSize: 32,
           fontWeight: FontWeight.bold,
@@ -77,13 +79,13 @@ class AppTheme {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: backgroundLight,
+        backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: textDark),
         titleTextStyle: GoogleFonts.poppins(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
           color: textDark,
         ),
       ),

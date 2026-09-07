@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'orders_cubit.dart';
 import '../data/orders_repository.dart';
@@ -34,18 +35,33 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text("My Bookings"),
+        title: Text(
+          "My Bookings",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppTheme.textDark,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppTheme.primaryGreen,
           unselectedLabelColor: AppTheme.textMuted,
           indicatorColor: AppTheme.primaryGreen,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-          unselectedLabelStyle: const TextStyle(),
+          indicatorWeight: 2.5,
+          labelStyle: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 13.5,
+          ),
+          unselectedLabelStyle: GoogleFonts.poppins(
+            fontWeight: FontWeight.w500,
+            fontSize: 13.5,
+          ),
           tabs: const [
             Tab(text: "Active Bookings"),
             Tab(text: "Order History"),

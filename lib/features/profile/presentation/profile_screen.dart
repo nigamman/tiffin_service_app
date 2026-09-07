@@ -21,8 +21,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const Color curryGreen = Color(0xFF0F3A20);
-  static const Color turmericGold = Color(0xFFC3A575);
+  static const Color primaryGreen = Color(0xFF0F3A20);
 
   // Local cache to preserve UI during Bloc Loading state transitions
   UserProfile? _user;
@@ -57,11 +56,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.phone_android, color: curryGreen),
+            const Icon(Icons.phone_android, color: primaryGreen),
             const SizedBox(width: 8),
             Text(
               "Add Phone Number",
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: curryGreen, fontSize: 15),
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: primaryGreen, fontSize: 15),
             ),
           ],
         ),
@@ -85,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: curryGreen, width: 2),
+                    borderSide: const BorderSide(color: primaryGreen, width: 2),
                   ),
                 ),
                 validator: (v) {
@@ -104,7 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: curryGreen,
+              backgroundColor: primaryGreen,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
@@ -211,6 +210,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) {
         bool isDetecting = false;
         return StatefulBuilder(
@@ -218,7 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                top: 20,
+                top: 24,
                 left: 20,
                 right: 20,
               ),
@@ -229,110 +231,151 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Edit Profile Details",
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontSize: 20,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Edit Profile Details",
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: isDetecting
+                                ? null
+                                : () async {
+                                    setModalState(() => isDetecting = true);
+                                    try {
+                                      await _detectLocation(
+                                        houseController,
+                                        areaController,
+                                        landmarkController,
+                                      );
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text("Could not retrieve location: $e"),
+                                          backgroundColor: AppTheme.errorColor,
+                                        ),
+                                      );
+                                    } finally {
+                                      setModalState(() => isDetecting = false);
+                                    }
+                                  },
+                            icon: isDetecting
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(primaryGreen),
+                                    ),
+                                  )
+                                : const Icon(Icons.my_location, size: 16, color: primaryGreen),
+                            label: Text(
+                              isDetecting ? "Detecting..." : "Locate Me",
+                              style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: primaryGreen,
                               ),
-                        ),
-                        TextButton.icon(
-                          onPressed: isDetecting
-                              ? null
-                              : () async {
-                                  setModalState(() => isDetecting = true);
-                                  try {
-                                    await _detectLocation(
-                                      houseController,
-                                      areaController,
-                                      landmarkController,
-                                    );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text("Could not retrieve location: $e"),
-                                        backgroundColor: AppTheme.errorColor,
-                                      ),
-                                    );
-                                  } finally {
-                                    setModalState(() => isDetecting = false);
-                                  }
-                                },
-                          icon: isDetecting
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation(AppTheme.primaryGreen),
-                                  ),
-                                )
-                              : const Icon(Icons.my_location, size: 16),
-                          label: Text(
-                            isDetecting ? "Detecting..." : "Locate Me",
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Name
+                      TextFormField(
+                        controller: nameController,
+                        style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.textDark),
+                        decoration: InputDecoration(
+                          labelText: "Full Name",
+                          labelStyle: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: primaryGreen, width: 1.5),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                
-                // Name
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: "Full Name"),
-                  validator: (v) => (v == null || v.isEmpty) ? "Name is required" : null,
-                ),
-                const SizedBox(height: 12),
-                
-                // House No
-                TextFormField(
-                  controller: houseController,
-                  decoration: const InputDecoration(labelText: "House / Flat No."),
-                  validator: (v) => (v == null || v.isEmpty) ? "House No is required" : null,
-                ),
-                const SizedBox(height: 12),
-                
-                // Area
-                TextFormField(
-                  controller: areaController,
-                  decoration: const InputDecoration(labelText: "Area / Locality"),
-                  validator: (v) => (v == null || v.isEmpty) ? "Area is required" : null,
-                ),
-                const SizedBox(height: 12),
-                
-                // Landmark
-                TextFormField(
-                  controller: landmarkController,
-                  decoration: const InputDecoration(labelText: "Landmark"),
-                  validator: (v) => (v == null || v.isEmpty) ? "Landmark is required" : null,
-                ),
-                const SizedBox(height: 24),
+                        validator: (v) => (v == null || v.isEmpty) ? "Name is required" : null,
+                      ),
+                      const SizedBox(height: 14),
+                      
+                      // House No
+                      TextFormField(
+                        controller: houseController,
+                        style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.textDark),
+                        decoration: InputDecoration(
+                          labelText: "House / Flat No.",
+                          labelStyle: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+                          ),
+                        ),
+                        validator: (v) => (v == null || v.isEmpty) ? "House No is required" : null,
+                      ),
+                      const SizedBox(height: 14),
+                      
+                      // Area
+                      TextFormField(
+                        controller: areaController,
+                        style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.textDark),
+                        decoration: InputDecoration(
+                          labelText: "Area / Locality",
+                          labelStyle: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+                          ),
+                        ),
+                        validator: (v) => (v == null || v.isEmpty) ? "Area is required" : null,
+                      ),
+                      const SizedBox(height: 14),
+                      
+                      // Landmark
+                      TextFormField(
+                        controller: landmarkController,
+                        style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.textDark),
+                        decoration: InputDecoration(
+                          labelText: "Landmark",
+                          labelStyle: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+                          ),
+                        ),
+                        validator: (v) => (v == null || v.isEmpty) ? "Landmark is required" : null,
+                      ),
+                      const SizedBox(height: 24),
 
-                CustomButton(
-                  text: "Save Details",
-                  onPressed: () {
-                    if (formKey.currentState?.validate() ?? false) {
-                      this.context.read<AuthCubit>().updateProfile(
-                            nameController.text.trim(),
-                            houseController.text.trim(),
-                            areaController.text.trim(),
-                            landmarkController.text.trim(),
-                          );
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(this.context).showSnackBar(
-                        const SnackBar(content: Text("Profile details saved successfully")),
-                      );
-                    }
-                  },
+                      CustomButton(
+                        text: "Save Details",
+                        onPressed: () {
+                          if (formKey.currentState?.validate() ?? false) {
+                            this.context.read<AuthCubit>().updateProfile(
+                                  nameController.text.trim(),
+                                  houseController.text.trim(),
+                                  areaController.text.trim(),
+                                  landmarkController.text.trim(),
+                                );
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(content: Text("Profile details saved successfully")),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-          ),
+              ),
             );
           },
         );
@@ -343,22 +386,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text("My Profile"),
+        title: Text(
+          "My Profile",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppTheme.textDark,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
       ),
       body: BlocBuilder<AuthCubit, AuthState>(
         builder: (context, state) {
           if (state is AuthAuthenticated) {
             _user = state.user;
-            // Trigger phone prompt if it slipped through initState (e.g. state arrives late)
             WidgetsBinding.instance.addPostFrameCallback((_) => _checkPhoneMissing());
           }
           
           if (_user == null) {
-            return const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
+            return const Center(child: CircularProgressIndicator(color: primaryGreen));
           }
 
           final user = _user!;
@@ -368,20 +418,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return Stack(
             children: [
               SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // --- User Profile Header Card ---
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: turmericGold, width: 1.5),
+                        borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.015),
-                            blurRadius: 10,
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 16,
                             offset: const Offset(0, 4),
                           ),
                         ],
@@ -392,16 +442,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Row(
                             children: [
-                              CircleAvatar(
-                                radius: 32,
-                                backgroundColor: curryGreen,
-                                child: CircleAvatar(
-                                  radius: 30.5,
-                                  backgroundColor: Colors.white,
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: primaryGreen,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: primaryGreen.withOpacity(0.2),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
                                   child: Text(
-                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'C',
-                                    style: const TextStyle(
-                                      color: curryGreen,
+                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -418,74 +477,150 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       style: GoogleFonts.poppins(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
-                                        color: curryGreen,
+                                        color: AppTheme.textDark,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      "+91 ${user.phone}",
-                                      style: GoogleFonts.poppins(
-                                        color: AppTheme.textMuted,
-                                        fontSize: 13,
-                                      ),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.phone_outlined,
+                                          size: 13,
+                                          color: AppTheme.textMuted,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "+91 ${user.phone}",
+                                          style: GoogleFonts.poppins(
+                                            color: AppTheme.textMuted,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: curryGreen, size: 20),
-                                onPressed: _showEditAddressSheet,
-                                style: IconButton.styleFrom(
-                                  backgroundColor: turmericGold.withOpacity(0.12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              InkWell(
+                                onTap: _showEditAddressSheet,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: primaryGreen.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.edit_outlined, color: primaryGreen, size: 15),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "Edit",
+                                        style: GoogleFonts.poppins(
+                                          color: primaryGreen,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          const Divider(height: 24, color: turmericGold, thickness: 0.8),
-                          Text(
-                            "Delivery Address",
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: curryGreen,
+                          const SizedBox(height: 18),
+                          Divider(height: 1, color: Colors.grey.shade200),
+                          const SizedBox(height: 16),
+                          
+                          // Delivery Address Box
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8F9FA),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: primaryGreen.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.location_on_outlined,
+                                    color: primaryGreen,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Delivery Address",
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12.5,
+                                          color: AppTheme.textDark,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      hasAddress
+                                          ? Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  "${user.houseNo}, ${user.area}",
+                                                  style: GoogleFonts.poppins(
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AppTheme.textDark,
+                                                    fontSize: 12.5,
+                                                    height: 1.3,
+                                                  ),
+                                                ),
+                                                if (user.landmark.isNotEmpty) ...[
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    "Landmark: ${user.landmark}",
+                                                    style: GoogleFonts.poppins(
+                                                      color: AppTheme.textMuted,
+                                                      fontSize: 11.5,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            )
+                                          : Text(
+                                              "No address configured yet. Tap edit to set location.",
+                                              style: GoogleFonts.poppins(
+                                                color: AppTheme.textMuted,
+                                                fontSize: 11.5,
+                                              ),
+                                            ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          hasAddress
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      user.houseNo,
-                                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: AppTheme.textDark, fontSize: 13),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      user.area,
-                                      style: GoogleFonts.poppins(color: AppTheme.textDark, fontSize: 13),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "Landmark: ${user.landmark}",
-                                      style: GoogleFonts.poppins(color: AppTheme.textMuted, fontSize: 12),
-                                    ),
-                                  ],
-                                )
-                              : Text(
-                                  "No address configured yet. Tap edit to set location.",
-                                  style: GoogleFonts.poppins(color: AppTheme.textMuted, fontSize: 12),
-                                ),
-
                         ],
                       ),
                     ),
                     const SizedBox(height: 24),
+                    
+                    // --- Custom Segmented Tab Toggle ---
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECE7DB),
-                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFFEEF1F4),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
                         children: [
@@ -496,16 +631,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   _activeTab = 0;
                                 });
                               },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: _activeTab == 0 ? curryGreen : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: _activeTab == 0 ? primaryGreen : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(11),
                                   boxShadow: _activeTab == 0
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
-                                            blurRadius: 4,
+                                            color: primaryGreen.withOpacity(0.2),
+                                            blurRadius: 8,
                                             offset: const Offset(0, 2),
                                           ),
                                         ]
@@ -517,7 +653,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
-                                      color: _activeTab == 0 ? turmericGold : curryGreen.withOpacity(0.6),
+                                      color: _activeTab == 0 ? Colors.white : AppTheme.textMuted,
                                     ),
                                   ),
                                 ),
@@ -531,16 +667,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   _activeTab = 1;
                                 });
                               },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: _activeTab == 1 ? curryGreen : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: _activeTab == 1 ? primaryGreen : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(11),
                                   boxShadow: _activeTab == 1
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
-                                            blurRadius: 4,
+                                            color: primaryGreen.withOpacity(0.2),
+                                            blurRadius: 8,
                                             offset: const Offset(0, 2),
                                           ),
                                         ]
@@ -552,7 +689,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
-                                      color: _activeTab == 1 ? turmericGold : curryGreen.withOpacity(0.6),
+                                      color: _activeTab == 1 ? Colors.white : AppTheme.textMuted,
                                     ),
                                   ),
                                 ),
@@ -562,7 +699,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+                    
+                    // Tab View Contents
                     _activeTab == 0
                         ? Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,17 +711,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: curryGreen,
+                                  color: AppTheme.textDark,
                                 ),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 12),
                               BlocBuilder<OrdersCubit, OrdersState>(
                                 builder: (context, ordersState) {
                                   if (ordersState is OrdersLoading) {
                                     return const Center(
                                       child: Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 20),
-                                        child: CircularProgressIndicator(color: curryGreen),
+                                        padding: EdgeInsets.symmetric(vertical: 30),
+                                        child: CircularProgressIndicator(color: primaryGreen),
                                       ),
                                     );
                                   }
@@ -594,15 +733,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     if (activeSubs.isEmpty) {
                                       return Container(
                                         width: double.infinity,
-                                        padding: const EdgeInsets.all(16),
+                                        padding: const EdgeInsets.all(20),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: turmericGold, width: 1.2),
+                                          borderRadius: BorderRadius.circular(18),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.03),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
                                         ),
-                                        child: Text(
-                                          "No active subscriptions. Subscribe to a plan to manage it here.",
-                                          style: GoogleFonts.poppins(color: AppTheme.textMuted, fontSize: 12),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade100,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.calendar_today_outlined,
+                                                color: AppTheme.textMuted,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 14),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    "No Active Subscription",
+                                                    style: GoogleFonts.poppins(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 13.5,
+                                                      color: AppTheme.textDark,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    "Subscribe to a meal plan to manage it anytime here.",
+                                                    style: GoogleFonts.poppins(
+                                                      color: AppTheme.textMuted,
+                                                      fontSize: 11.5,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       );
                                     }
@@ -625,35 +806,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: turmericGold, width: 1.5),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: Column(
                               children: [
                                 _buildTabItem(
-                                  icon: Icons.phone_in_talk,
-                                  title: "Customer Care",
-                                  subtitle: "Call support (+91 9450900700)",
+                                  icon: Icons.headset_mic_outlined,
+                                  title: "Customer Support",
+                                  subtitle: "Call support (+91 9119724875)",
                                   onTap: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text("Calling Customer Care (+91 9450900700)...")),
                                     );
                                   },
                                 ),
-                                const Divider(height: 1, color: Color(0xFFE2D6C1)),
+                                Divider(height: 1, color: Colors.grey.shade100),
                                 _buildTabItem(
-                                  icon: Icons.bug_report,
-                                  title: "Report a Bug",
-                                  subtitle: "Send a bug report to developer",
+                                  icon: Icons.bug_report_outlined,
+                                  title: "Report an Issue",
+                                  subtitle: "Send feedback or report a bug",
                                   onTap: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Redirecting to bug report screen...")),
+                                      const SnackBar(content: Text("Redirecting to support screen...")),
                                     );
                                   },
                                 ),
-                                const Divider(height: 1, color: Color(0xFFE2D6C1)),
+                                Divider(height: 1, color: Colors.grey.shade100),
                                 _buildTabItem(
-                                  icon: Icons.star_rate,
+                                  icon: Icons.star_outline_rounded,
                                   title: "Rate Our App",
                                   subtitle: "Rate us on Play Store",
                                   onTap: () {
@@ -662,9 +849,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     );
                                   },
                                 ),
-                                const Divider(height: 1, color: Color(0xFFE2D6C1)),
+                                Divider(height: 1, color: Colors.grey.shade100),
                                 _buildTabItem(
-                                  icon: Icons.share,
+                                  icon: Icons.share_outlined,
                                   title: "Share App",
                                   subtitle: "Invite friends and family",
                                   onTap: () {
@@ -677,18 +864,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                     const SizedBox(height: 32),
-                    CustomButton(
-                      text: "Log Out",
-                      isSecondary: true,
-                      icon: Icons.logout,
-                      onPressed: () {
-                        context.read<AuthCubit>().logout();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Logged out successfully")),
-                        );
-                      },
+                    
+                    // Log Out Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          context.read<AuthCubit>().logout();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Logged out successfully")),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red.shade700,
+                          side: BorderSide(color: Colors.red.shade200, width: 1.2),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          backgroundColor: Colors.red.shade50.withOpacity(0.4),
+                          elevation: 0,
+                        ),
+                        icon: Icon(Icons.logout, size: 18, color: Colors.red.shade700),
+                        label: Text(
+                          "Log Out",
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
+                    
+                    // Footer Info
                     Center(
                       child: Column(
                         children: [
@@ -697,28 +907,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
-                              color: curryGreen,
-                              letterSpacing: 0.5,
+                              color: primaryGreen,
+                              letterSpacing: 0.3,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                "App Version: 1.0",
-                                style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textMuted),
-                              ),
-                              const SizedBox(width: 16),
-                              Text(
-                                "Developer: nigamman",
-                                style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textMuted, fontWeight: FontWeight.w500),
-                              ),
-                            ],
+                          const SizedBox(height: 4),
+                          Text(
+                            "App Version 1.0  •  Made with ❤️ by nigamman",
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: AppTheme.textMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -727,7 +932,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Container(
                     color: Colors.black.withOpacity(0.12),
                     child: const Center(
-                      child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+                      child: CircularProgressIndicator(color: primaryGreen),
                     ),
                   ),
                 ),
@@ -823,15 +1028,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(18.0),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: turmericGold, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.015),
-              blurRadius: 10,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 14,
               offset: const Offset(0, 4),
             ),
           ],
@@ -845,78 +1049,88 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: curryGreen.withOpacity(0.06),
+                    color: primaryGreen.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     "${order.frequency.toUpperCase()} SUBSCRIPTION",
-                    style: const TextStyle(
-                      color: curryGreen,
+                    style: GoogleFonts.poppins(
+                      color: primaryGreen,
                       fontWeight: FontWeight.bold,
                       fontSize: 10,
-                      letterSpacing: 1.0,
+                      letterSpacing: 0.8,
                     ),
                   ),
                 ),
-                const Row(
-                  children: [
-                    Icon(Icons.check_circle, color: AppTheme.successColor, size: 14),
-                    SizedBox(width: 6),
-                    Text(
-                      "Active",
-                      style: TextStyle(
-                        color: AppTheme.successColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.circle, color: Colors.green.shade700, size: 7),
+                      const SizedBox(width: 4),
+                      Text(
+                        "Active",
+                        style: GoogleFonts.poppins(
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Text(
               "Home Tiffin Meal  •  ${order.quantity} Box (${order.deliverySlot.toUpperCase()})",
-              style: const TextStyle(
+              style: GoogleFonts.poppins(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: curryGreen,
+                fontSize: 15,
+                color: AppTheme.textDark,
               ),
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   "Subscription Progress",
-                  style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted),
                 ),
                 Text(
                   "$remainingMeals of $totalMeals meals left",
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: curryGreen),
+                  style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: primaryGreen),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
-              height: 6,
+              height: 7,
               decoration: BoxDecoration(
-                color: turmericGold.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(3),
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(4),
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
                 widthFactor: progressPercent,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: curryGreen,
-                    borderRadius: BorderRadius.circular(3),
+                    color: primaryGreen,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
             ),
-            const Divider(height: 32, color: Color(0xFFE2D6C1)),
+            const SizedBox(height: 16),
+            Divider(height: 1, color: Colors.grey.shade200),
+            const SizedBox(height: 14),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -924,17 +1138,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: isTargetSkipped 
-                        ? AppTheme.errorColor.withOpacity(0.06)
-                        : curryGreen.withOpacity(0.06),
+                        ? AppTheme.errorColor.withOpacity(0.08)
+                        : primaryGreen.withOpacity(0.08),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     isTargetSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
                     size: 18,
-                    color: isTargetSkipped ? AppTheme.errorColor : curryGreen,
+                    color: isTargetSkipped ? AppTheme.errorColor : primaryGreen,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -943,18 +1157,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         isTargetSkipped
                             ? "$dayLabel's Delivery Skipped"
                             : "Scheduled $dayLabel",
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: isTargetSkipped ? AppTheme.errorColor : curryGreen,
+                          fontSize: 13.5,
+                          color: isTargetSkipped ? AppTheme.errorColor : primaryGreen,
                         ),
                       ),
                       Text(
                         isTargetSkipped
                             ? "You will not receive tiffin box for $dayLabel's ${order.deliverySlot} slot."
                             : "Delivered $dayLabel during ${order.deliverySlot.toUpperCase()} slot ($slotTimingText).",
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11.5,
                           color: AppTheme.textMuted,
                           height: 1.3,
                         ),
@@ -964,21 +1178,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
                     ? AppTheme.textMuted 
-                    : turmericGold,
+                    : primaryGreen,
                 side: BorderSide(
                   color: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
-                      ? AppTheme.borderLight 
-                      : turmericGold,
+                      ? Colors.grey.shade300 
+                      : primaryGreen,
                   width: 1.2,
                 ),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 minimumSize: const Size(double.infinity, 44),
-                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                textStyle: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.bold),
               ),
               icon: Icon(
                 isTargetSkipped 
@@ -999,12 +1213,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         builder: (BuildContext dialogContext) {
                           return AlertDialog(
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            title: const Text("Confirm Skip"),
-                            content: Text("Are you sure you want to skip $dayLabel's delivery? Note: This action cannot be undone and you cannot unskip this delivery later."),
+                            title: Text(
+                              "Confirm Skip",
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                            ),
+                            content: Text(
+                              "Are you sure you want to skip $dayLabel's delivery? Note: This action cannot be undone and you cannot unskip this delivery later.",
+                              style: GoogleFonts.poppins(fontSize: 12.5, color: AppTheme.textDark),
+                            ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text("Cancel", style: TextStyle(color: AppTheme.textMuted)),
+                                child: Text("Cancel", style: GoogleFonts.poppins(color: AppTheme.textMuted)),
                               ),
                               TextButton(
                                 onPressed: () {
@@ -1017,7 +1237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     icon: Icons.skip_next,
                                   );
                                 },
-                                child: const Text("Skip", style: TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
+                                child: Text("Skip", style: GoogleFonts.poppins(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
                               ),
                             ],
                           );
@@ -1029,7 +1249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: Text(
                 "Note: Skip requests accepted up to 2 hours before delivery ($cutoffText cutoff)",
-                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textMuted),
               ),
             ),
           ],
@@ -1045,23 +1265,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required VoidCallback onTap,
   }) {
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: curryGreen.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(8),
+          color: primaryGreen.withOpacity(0.08),
+          shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: curryGreen, size: 20),
+        child: Icon(icon, color: primaryGreen, size: 20),
       ),
       title: Text(
         title,
-        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppTheme.textDark),
       ),
       subtitle: Text(
         subtitle,
-        style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textMuted),
+        style: GoogleFonts.poppins(fontSize: 11.5, color: AppTheme.textMuted),
       ),
-      trailing: const Icon(Icons.chevron_right, color: turmericGold, size: 18),
+      trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted, size: 20),
       onTap: onTap,
     );
   }
