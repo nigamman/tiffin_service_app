@@ -24,6 +24,10 @@ class OrderModel {
   final DateTime createdAt;
   final String? todayDeliveryStatus;
   final String? todayDeliveryStatusDate;
+  final String? todayLunchStatus;
+  final String? todayLunchStatusDate;
+  final String? todayDinnerStatus;
+  final String? todayDinnerStatusDate;
 
   OrderModel({
     required this.id,
@@ -47,6 +51,10 @@ class OrderModel {
     required this.createdAt,
     this.todayDeliveryStatus,
     this.todayDeliveryStatusDate,
+    this.todayLunchStatus,
+    this.todayLunchStatusDate,
+    this.todayDinnerStatus,
+    this.todayDinnerStatusDate,
   });
 
   // GETTERS AND HELPERS
@@ -58,7 +66,8 @@ class OrderModel {
   int get deliveredMeals {
     final now = DateTime.now();
     final todayNormalized = DateTime(now.year, now.month, now.day);
-    final startNormalized = DateTime(startDate.year, startDate.month, startDate.day);
+    final startLocal = startDate.toLocal();
+    final startNormalized = DateTime(startLocal.year, startLocal.month, startLocal.day);
 
     if (todayNormalized.isBefore(startNormalized)) {
       return 0;
@@ -69,7 +78,8 @@ class OrderModel {
     final currentMinute = now.minute;
     final currentFloatTime = currentHour + (currentMinute / 60.0);
 
-    for (int i = 0; i <= todayNormalized.difference(startNormalized).inDays; i++) {
+    final int totalDays = todayNormalized.difference(startNormalized).inDays;
+    for (int i = 0; i <= totalDays; i++) {
       final checkDate = startNormalized.add(Duration(days: i));
       if (isDeliveryDay(checkDate, frequency)) {
         if (checkDate.isBefore(todayNormalized)) {
@@ -96,25 +106,37 @@ class OrderModel {
       }
     }
 
-    final multiplier = deliverySlot == 'both' ? 2 : 1;
-    
-    final elapsedFullDaySkips = skippedDates
-        .where((d) => !d.isAfter(todayNormalized))
-        .length * multiplier;
-        
-    int elapsedSlotSkips = 0;
+    // Build a Set of unique skipped meal slot keys to avoid double-counting between skippedDates and skippedSlots
+    final Set<String> uniqueSkippedSlotKeys = {};
+
+    for (final d in skippedDates) {
+      final dLocal = d.toLocal();
+      final dateNorm = DateTime(dLocal.year, dLocal.month, dLocal.day);
+      if (!dateNorm.isAfter(todayNormalized)) {
+        final dateStr = DateFormat('yyyy-MM-dd').format(dateNorm);
+        if (deliverySlot == 'both') {
+          uniqueSkippedSlotKeys.add('${dateStr}_lunch');
+          uniqueSkippedSlotKeys.add('${dateStr}_dinner');
+        } else {
+          uniqueSkippedSlotKeys.add('${dateStr}_$deliverySlot');
+        }
+      }
+    }
+
     for (final slotKey in skippedSlots) {
       try {
         final dateStr = slotKey.split('_')[0];
-        final slotDate = DateTime.parse(dateStr);
-        if (!slotDate.isAfter(todayNormalized)) {
-          elapsedSlotSkips++;
+        final slotDate = DateTime.parse(dateStr).toLocal();
+        final dateNorm = DateTime(slotDate.year, slotDate.month, slotDate.day);
+        if (!dateNorm.isAfter(todayNormalized)) {
+          uniqueSkippedSlotKeys.add(slotKey);
         }
       } catch (_) {}
     }
-    
-    final totalSkips = elapsedFullDaySkips + elapsedSlotSkips;
-    return (totalElapsedSlots - totalSkips).clamp(0, totalMeals);
+
+    final totalSkips = uniqueSkippedSlotKeys.length;
+    final effectiveDelivered = totalElapsedSlots - totalSkips;
+    return effectiveDelivered.clamp(0, totalMeals);
   }
 
   int get remainingMeals {
@@ -125,39 +147,67 @@ class OrderModel {
     return totalMeals > 0 ? remainingMeals / totalMeals : 0.0;
   }
 
-  bool get isScheduledToday {
+  bool isScheduledForDate(DateTime targetDate) {
     if (orderStatus == 'cancelled') return false;
-    final now = DateTime.now();
-    final todayNormalized = DateTime(now.year, now.month, now.day);
+    if (remainingMeals <= 0) return false;
 
-    // Normalize startDate to local date only (strip time/timezone)
+    final targetNormalized = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    final targetStr = DateFormat('yyyy-MM-dd').format(targetDate);
+
     final startLocal = startDate.toLocal();
     final startNormalized = DateTime(startLocal.year, startLocal.month, startLocal.day);
 
-    if (todayNormalized.isBefore(startNormalized)) return false;
+    if (targetNormalized.isBefore(startNormalized)) return false;
 
-    // Check skipped dates
-    final isSkipped = skippedDates.any((d) {
+    // Check full-day skipped dates
+    final isDaySkipped = skippedDates.any((d) {
       final dLocal = d.toLocal();
       return DateTime(dLocal.year, dLocal.month, dLocal.day)
-          .isAtSameMomentAs(todayNormalized);
+          .isAtSameMomentAs(targetNormalized);
     });
-    if (isSkipped) return false;
+    if (isDaySkipped) return false;
 
-    if (frequency == 'one-time') {
-      return startNormalized.isAtSameMomentAs(todayNormalized);
+    // Check slot skips
+    if (deliverySlot == 'lunch' && skippedSlots.contains('${targetStr}_lunch')) {
+      return false;
+    }
+    if (deliverySlot == 'dinner' && skippedSlots.contains('${targetStr}_dinner')) {
+      return false;
+    }
+    if (deliverySlot == 'both' &&
+        skippedSlots.contains('${targetStr}_lunch') &&
+        skippedSlots.contains('${targetStr}_dinner')) {
+      return false;
     }
 
-    return isDeliveryDay(todayNormalized, frequency);
+    if (frequency == 'one-time') {
+      return startNormalized.isAtSameMomentAs(targetNormalized);
+    }
+
+    return isDeliveryDay(targetNormalized, frequency);
   }
+
+  bool get isScheduledToday => isScheduledForDate(DateTime.now());
 
   int get todayActiveStage {
     final now = DateTime.now();
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
     
-    // 1. Check if database has manual status for today
-    if (todayDeliveryStatusDate == todayStr && todayDeliveryStatus != null) {
-      final status = todayDeliveryStatus!.toLowerCase();
+    // Determine relevant status field depending on time of day for 'both' slots vs single slot
+    String? relevantStatus = todayDeliveryStatus;
+    String? relevantStatusDate = todayDeliveryStatusDate;
+
+    final isDinnerTime = (deliverySlot == 'both' && now.hour >= 15);
+    if (isDinnerTime && todayDinnerStatus != null && todayDinnerStatusDate == todayStr) {
+      relevantStatus = todayDinnerStatus;
+      relevantStatusDate = todayDinnerStatusDate;
+    } else if (!isDinnerTime && deliverySlot == 'both' && todayLunchStatus != null && todayLunchStatusDate == todayStr) {
+      relevantStatus = todayLunchStatus;
+      relevantStatusDate = todayLunchStatusDate;
+    }
+    
+    if (relevantStatusDate == todayStr && relevantStatus != null) {
+      final status = relevantStatus.toLowerCase();
       if (status == 'preparing' || status == 'cooking' || status == 'meal_preparing') {
         return 1;
       } else if (status == 'on_way' || status == 'out_for_delivery' || status == 'dispatched') {
@@ -169,22 +219,17 @@ class OrderModel {
       }
     }
     
-    // 2. Fallback to time-of-day logic (placed vs meal preparing)
+    // Fallback to time-of-day logic (placed vs meal preparing)
     final hour = now.hour;
     final minute = now.minute;
     final double timeOfDay = hour + (minute / 60.0);
 
-    // Lunch starts at 11:30 (11.5). Meal preparing starts at 10:30 (10.5).
-    // Dinner starts at 19:00 (19.0). Meal preparing starts at 18:00 (18.0).
-    
     if (deliverySlot == 'dinner') {
       if (timeOfDay >= 18.0) {
         return 1; // Meal Preparing
       }
       return 0; // Placed
     } else if (deliverySlot == 'lunch' || deliverySlot == 'both') {
-      // If slot is both, we check if it is dinner time (past 3:00 PM)
-      final isDinnerTime = now.hour >= 15;
       if (isDinnerTime) {
         if (timeOfDay >= 18.0) {
           return 1; // Meal Preparing for dinner
@@ -251,6 +296,10 @@ class OrderModel {
       createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
       todayDeliveryStatus: map['todayDeliveryStatus'],
       todayDeliveryStatusDate: map['todayDeliveryStatusDate'],
+      todayLunchStatus: map['todayLunchStatus'],
+      todayLunchStatusDate: map['todayLunchStatusDate'],
+      todayDinnerStatus: map['todayDinnerStatus'],
+      todayDinnerStatusDate: map['todayDinnerStatusDate'],
     );
   }
 
@@ -277,6 +326,10 @@ class OrderModel {
       'createdAt': createdAt.toIso8601String(),
       'todayDeliveryStatus': todayDeliveryStatus,
       'todayDeliveryStatusDate': todayDeliveryStatusDate,
+      'todayLunchStatus': todayLunchStatus,
+      'todayLunchStatusDate': todayLunchStatusDate,
+      'todayDinnerStatus': todayDinnerStatus,
+      'todayDinnerStatusDate': todayDinnerStatusDate,
     };
   }
 }
@@ -375,22 +428,41 @@ class OrdersRepository {
     });
   }
 
-  Future<void> adminUpdateTodayDeliveryStatus(String orderId, String status, String dateStr) async {
-    await _db.docUpdate('orders', orderId, {
+  Future<void> adminUpdateTodayDeliveryStatus(String orderId, String status, String dateStr, {String? slot}) async {
+    final updates = <String, dynamic>{
       'todayDeliveryStatus': status,
       'todayDeliveryStatusDate': dateStr,
-    });
+    };
+    if (slot == 'lunch') {
+      updates['todayLunchStatus'] = status;
+      updates['todayLunchStatusDate'] = dateStr;
+    } else if (slot == 'dinner') {
+      updates['todayDinnerStatus'] = status;
+      updates['todayDinnerStatusDate'] = dateStr;
+    }
+    await _db.docUpdate('orders', orderId, updates);
   }
 
-  Future<void> adminUpdateAllTodayDeliveryStatus(String status, String dateStr) async {
+  Future<void> adminUpdateAllTodayDeliveryStatus(String status, String dateStr, {String? slot}) async {
     final allOrders = await _db.collectionGet('orders');
     final paidOrders = allOrders.where((o) => o['paymentStatus'] == 'paid').map((o) => OrderModel.fromMap(o)).toList();
     for (final order in paidOrders) {
       if (order.isScheduledToday) {
-        await _db.docUpdate('orders', order.id, {
+        final updates = <String, dynamic>{
           'todayDeliveryStatus': status,
           'todayDeliveryStatusDate': dateStr,
-        });
+        };
+        if (slot != null || order.deliverySlot != 'both') {
+          final s = slot ?? order.deliverySlot;
+          if (s == 'lunch') {
+            updates['todayLunchStatus'] = status;
+            updates['todayLunchStatusDate'] = dateStr;
+          } else if (s == 'dinner') {
+            updates['todayDinnerStatus'] = status;
+            updates['todayDinnerStatusDate'] = dateStr;
+          }
+        }
+        await _db.docUpdate('orders', order.id, updates);
       }
     }
   }

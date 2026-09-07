@@ -217,31 +217,14 @@ class _AdminOrderListState extends State<AdminOrderList> {
 
   @override
   Widget build(BuildContext context) {
-    // Apply filters locally for robust mock support
+    // Apply filters using centralized OrderModel scheduling logic
     final List<OrderModel> filteredOrders = _orders.where((o) {
-      if (_filter == 'all') return true;
-      
-      final today = DateTime.now();
-      final target = _filter == 'today' ? today : today.add(const Duration(days: 1));
-      final targetNormalized = DateTime(target.year, target.month, target.day);
-
-      if (o.frequency == 'one-time') {
-        final start = DateTime(o.startDate.year, o.startDate.month, o.startDate.day);
-        return start.isAtSameMomentAs(targetNormalized);
-      } else {
-        // Recurring plans are active if start date is on or before target date and order is not cancelled
-        if (o.orderStatus == 'cancelled') return false;
-        
-        final startNormalized = DateTime(o.startDate.year, o.startDate.month, o.startDate.day);
-        final startsOnOrBefore = startNormalized.isBefore(targetNormalized) || startNormalized.isAtSameMomentAs(targetNormalized);
-        
-        // Also check if they skipped this specific date
-        final isDateSkipped = o.skippedDates.any(
-          (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(targetNormalized),
-        );
-
-        return startsOnOrBefore && !isDateSkipped;
+      if (_filter == 'today') {
+        return o.isScheduledToday;
+      } else if (_filter == 'tomorrow') {
+        return o.isScheduledForDate(DateTime.now().add(const Duration(days: 1)));
       }
+      return true; // 'all'
     }).toList();
 
     return Scaffold(
@@ -410,7 +393,7 @@ class _AdminOrderListState extends State<AdminOrderList> {
                                                 context,
                                                 label: 'Out for Delivery',
                                                 isSelected: order.todayDeliveryStatusDate == DateFormat('yyyy-MM-dd').format(DateTime.now()) && order.todayDeliveryStatus == 'out_for_delivery',
-                                                onTap: () => _updateOutForDelivery(),
+                                                onTap: () => _updateTodayStatus(order.id, 'out_for_delivery'),
                                               ),
                                             ),
                                             const SizedBox(width: 12),
