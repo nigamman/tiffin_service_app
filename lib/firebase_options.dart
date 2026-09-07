@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDEmicQIfps62Rqpr1McMCVuOMDT7Njav4',
-    appId: '1:57069695734:android:f23e978c288d0b473ff2d7',
+    appId: '1:57069695734:android:db794cc94df47b553ff2d7',
     messagingSenderId: '57069695734',
     projectId: 'tiffin-service-cd4fb',
     storageBucket: 'tiffin-service-cd4fb.firebasestorage.app',
@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '57069695734',
     projectId: 'tiffin-service-cd4fb',
     storageBucket: 'tiffin-service-cd4fb.firebasestorage.app',
-    iosBundleId: 'com.example.tiffinServiceApp',
+    iosBundleId: 'com.nigamman.atithibhoj',
   );
 }
