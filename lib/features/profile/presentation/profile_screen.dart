@@ -12,6 +12,7 @@ import '../../orders/presentation/subscription_details_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/notification_overlay.dart';
+import '../../policies/presentation/policy_center_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -819,44 +820,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 _buildTabItem(
                                   icon: Icons.headset_mic_outlined,
-                                  title: "Customer Support",
-                                  subtitle: "Call support (+91 9119724875)",
+                                  title: "Customer Support & Contact Us",
+                                  subtitle: "Phone (+91 9119724875), Email & Office Address",
                                   onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Calling Customer Care (+91 9450900700)...")),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.contactUs),
+                                      ),
                                     );
                                   },
                                 ),
                                 Divider(height: 1, color: Colors.grey.shade100),
                                 _buildTabItem(
-                                  icon: Icons.bug_report_outlined,
-                                  title: "Report an Issue",
-                                  subtitle: "Send feedback or report a bug",
+                                  icon: Icons.info_outline_rounded,
+                                  title: "About Atithi Bhoj",
+                                  subtitle: "Our business details & mission in Kanpur",
                                   onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Redirecting to support screen...")),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.aboutUs),
+                                      ),
                                     );
                                   },
                                 ),
                                 Divider(height: 1, color: Colors.grey.shade100),
                                 _buildTabItem(
-                                  icon: Icons.star_outline_rounded,
-                                  title: "Rate Our App",
-                                  subtitle: "Rate us on Play Store",
+                                  icon: Icons.sell_outlined,
+                                  title: "Pricing & Subscription Plans",
+                                  subtitle: "Transparent plan rates and meal pricing",
                                   onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Redirecting to Play Store...")),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.pricing),
+                                      ),
                                     );
                                   },
                                 ),
                                 Divider(height: 1, color: Colors.grey.shade100),
                                 _buildTabItem(
-                                  icon: Icons.share_outlined,
-                                  title: "Share App",
-                                  subtitle: "Invite friends and family",
+                                  icon: Icons.replay_circle_filled_outlined,
+                                  title: "Cancellation & Refund Policy",
+                                  subtitle: "Subscription refunds and cancellation rules",
                                   onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Opening share panel...")),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.cancellationRefund),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Divider(height: 1, color: Colors.grey.shade100),
+                                _buildTabItem(
+                                  icon: Icons.local_shipping_outlined,
+                                  title: "Shipping & Delivery Policy",
+                                  subtitle: "5km delivery zone, timings, and rules",
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.shippingDelivery),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Divider(height: 1, color: Colors.grey.shade100),
+                                _buildTabItem(
+                                  icon: Icons.gavel_outlined,
+                                  title: "Terms, Conditions & Privacy",
+                                  subtitle: "Terms of service and data privacy commitment",
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.terms),
+                                      ),
                                     );
                                   },
                                 ),

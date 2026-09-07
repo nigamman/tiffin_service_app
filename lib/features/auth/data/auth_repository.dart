@@ -59,7 +59,7 @@ class AuthRepository {
     final existingUsers = await _db.collectionGetWhere('users', 'phone', phone);
     UserProfile profile;
 
-    final isSystemAdmin = phone == '9450900700' || phone == '9999999999' || name.toLowerCase() == 'admin';
+    final isSystemAdmin = phone == '9119724875' || phone == '9999999999' || name.toLowerCase() == 'admin';
 
     if (existingUsers.isNotEmpty) {
       profile = UserProfile.fromMap(existingUsers.first);
@@ -212,7 +212,7 @@ class AuthRepository {
 
     if (existingUsers.isNotEmpty) {
       profile = UserProfile.fromMap(existingUsers.first);
-      final isSystemAdmin = profile.phone == '9450900700' || profile.phone == '9999999999' || profile.name.toLowerCase() == 'admin';
+      final isSystemAdmin = profile.phone == '9119724875' || profile.phone == '9999999999' || profile.name.toLowerCase() == 'admin';
       if (isSystemAdmin && !profile.isAdmin) {
         await _db.docUpdate('users', profile.id, {'isAdmin': true});
         profile = UserProfile(
@@ -228,7 +228,7 @@ class AuthRepository {
     } else {
       final phone = firebaseUser.phoneNumber ?? '';
       final name = firebaseUser.displayName ?? 'Customer';
-      final isAdmin = phone == '9450900700' || phone == '9999999999' || name.toLowerCase() == 'admin';
+      final isAdmin = phone == '9119724875' || phone == '9999999999' || name.toLowerCase() == 'admin';
       
       final newUserMap = {
         'phone': phone,

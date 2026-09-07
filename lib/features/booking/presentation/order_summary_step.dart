@@ -7,6 +7,7 @@ import 'payment_gateway_simulator.dart';
 import 'order_confirmation_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../policies/presentation/policy_center_screen.dart';
 
 class OrderSummaryStep extends StatefulWidget {
   final MenuModel menu;
@@ -287,6 +288,37 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
                   icon: Icons.payment,
                   isLoading: state.isLoading,
                   onPressed: () => context.read<BookingCubit>().checkout(),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.terms),
+                      ),
+                    );
+                  },
+                  child: Center(
+                    child: Text.rich(
+                      TextSpan(
+                        text: "By proceeding, you agree to Atithi Bhoj ",
+                        style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                        children: const [
+                          TextSpan(
+                            text: "Terms, Refund & Delivery Policies",
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryGreen,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
                 SizedBox(
                   height: MediaQuery.of(context).padding.bottom > 0

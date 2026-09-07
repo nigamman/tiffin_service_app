@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'features/auth/presentation/auth_cubit.dart';
 import 'features/home/presentation/menu_cubit.dart';
 import 'features/orders/presentation/orders_cubit.dart';
