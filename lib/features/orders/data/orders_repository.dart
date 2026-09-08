@@ -23,6 +23,7 @@ class OrderModel {
   final List<DateTime> skippedDates;
   final List<String> skippedSlots;
   final DateTime createdAt;
+  final String? razorpayPaymentId;
   final String? todayDeliveryStatus;
   final String? todayDeliveryStatusDate;
   final String? todayLunchStatus;
@@ -51,6 +52,7 @@ class OrderModel {
     required this.skippedDates,
     required this.skippedSlots,
     required this.createdAt,
+    this.razorpayPaymentId,
     this.todayDeliveryStatus,
     this.todayDeliveryStatusDate,
     this.todayLunchStatus,
@@ -269,6 +271,7 @@ class OrderModel {
       skippedDates: skippedRaw.map((d) => DateTime.parse(d as String)).toList(),
       skippedSlots: List<String>.from(skippedSlotsRaw),
       createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
+      razorpayPaymentId: map['razorpayPaymentId'],
       todayDeliveryStatus: map['todayDeliveryStatus'],
       todayDeliveryStatusDate: map['todayDeliveryStatusDate'],
       todayLunchStatus: map['todayLunchStatus'],
@@ -300,6 +303,7 @@ class OrderModel {
       'skippedDates': skippedDates.map((d) => d.toIso8601String()).toList(),
       'skippedSlots': skippedSlots,
       'createdAt': createdAt.toIso8601String(),
+      'razorpayPaymentId': razorpayPaymentId,
       'todayDeliveryStatus': todayDeliveryStatus,
       'todayDeliveryStatusDate': todayDeliveryStatusDate,
       'todayLunchStatus': todayLunchStatus,

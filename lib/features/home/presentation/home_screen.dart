@@ -842,11 +842,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const Icon(
-            Icons.chevron_right,
-            color: Color(0xFFC3A575),
-            size: 20,
-          ),
         ],
       ),
     );

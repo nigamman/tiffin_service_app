@@ -35,6 +35,8 @@ class _SubscriptionDetailsView extends StatefulWidget {
 }
 
 class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
+  bool _showAllSchedule = false;
+
   void _openWhatsAppSupport(BuildContext context, OrderModel order, String issueTitle) async {
     final orderShortId = order.id.length > 6 
         ? order.id.toUpperCase().substring(order.id.length - 6) 
@@ -483,143 +485,182 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      itemCount: nextDays.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final dayDate = nextDays[index];
-        final dayName = DateFormat('EEEE').format(dayDate);
-        final dateLabel = DateFormat('dd MMM').format(dayDate);
-        
-        final isToday = dayDate.isAtSameMomentAs(today);
+    final displayedDays = _showAllSchedule ? nextDays : nextDays.take(3).toList();
 
-        // Sub-elements for active slots
-        final List<String> activeSlots = [];
-        if (order.deliverySlot == 'lunch' || order.deliverySlot == 'both') {
-          activeSlots.add('lunch');
-        }
-        if (order.deliverySlot == 'dinner' || order.deliverySlot == 'both') {
-          activeSlots.add('dinner');
-        }
+    return Column(
+      children: [
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          itemCount: displayedDays.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final dayDate = displayedDays[index];
+            final dayName = DateFormat('EEEE').format(dayDate);
+            final dateLabel = DateFormat('dd MMM').format(dayDate);
+            
+            final isToday = dayDate.isAtSameMomentAs(today);
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.015),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Day/Date Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        isToday ? "Today" : dayName,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: isToday ? AppTheme.primaryGreen : AppTheme.textDark,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        dateLabel,
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: AppTheme.textMuted,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+            // Sub-elements for active slots
+            final List<String> activeSlots = [];
+            if (order.deliverySlot == 'lunch' || order.deliverySlot == 'both') {
+              activeSlots.add('lunch');
+            }
+            if (order.deliverySlot == 'dinner' || order.deliverySlot == 'both') {
+              activeSlots.add('dinner');
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.015),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              
-              // Dynamic slots list for this day
-              ...activeSlots.map((slot) {
-                final deliveryStart = slot == 'lunch' ? "11:30 AM" : "7:00 PM";
-                final isDelivered = order.isSlotDelivered(dayDate, slot);
-
-                return Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFBFBF9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Day/Date Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        slot == 'lunch' ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined,
-                        size: 18,
-                        color: slot == 'lunch' ? Colors.orange : Colors.indigo,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              slot == 'lunch' ? "Lunch Delivery" : "Dinner Delivery",
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textDark,
-                              ),
-                            ),
-                            Text(
-                              "Starts at $deliveryStart",
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                color: AppTheme.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Status icon/badge
                       Row(
                         children: [
-                          Icon(
-                            isDelivered ? Icons.check_circle_outline : Icons.schedule,
-                            size: 14,
-                            color: isDelivered ? AppTheme.successColor : AppTheme.textMuted,
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            isDelivered ? "Delivered" : "Scheduled",
+                            isToday ? "Today" : dayName,
                             style: GoogleFonts.poppins(
-                              fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isDelivered ? AppTheme.successColor : AppTheme.textMuted,
+                              fontSize: 14,
+                              color: isToday ? AppTheme.primaryGreen : AppTheme.textDark,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            dateLabel,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: AppTheme.textMuted,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
                     ],
                   ),
-                );
-              }).toList(),
-            ],
+                  const SizedBox(height: 12),
+                  
+                  // Dynamic slots list for this day
+                  ...activeSlots.map((slot) {
+                    final deliveryStart = slot == 'lunch' ? "11:30 AM" : "7:00 PM";
+                    final isDelivered = order.isSlotDelivered(dayDate, slot);
+
+                    return Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBFBF9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            slot == 'lunch' ? Icons.wb_sunny_outlined : Icons.nights_stay_outlined,
+                            size: 18,
+                            color: slot == 'lunch' ? Colors.orange : Colors.indigo,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  slot == 'lunch' ? "Lunch Delivery" : "Dinner Delivery",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textDark,
+                                  ),
+                                ),
+                                Text(
+                                  "Starts at $deliveryStart",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: AppTheme.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Status icon/badge
+                          Row(
+                            children: [
+                              Icon(
+                                isDelivered ? Icons.check_circle_outline : Icons.schedule,
+                                size: 14,
+                                color: isDelivered ? AppTheme.successColor : AppTheme.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isDelivered ? "Delivered" : "Scheduled",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDelivered ? AppTheme.successColor : AppTheme.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            );
+          },
+        ),
+        if (nextDays.length > 3) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryGreen,
+                side: BorderSide(color: AppTheme.primaryGreen.withOpacity(0.4), width: 1.2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                minimumSize: const Size(double.infinity, 44),
+                backgroundColor: Colors.white,
+              ),
+              onPressed: () {
+                setState(() {
+                  _showAllSchedule = !_showAllSchedule;
+                });
+              },
+              icon: Icon(
+                _showAllSchedule ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                size: 20,
+              ),
+              label: Text(
+                _showAllSchedule
+                    ? "Show Less"
+                    : "View Full Schedule (${nextDays.length - 3} More Days)",
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.5,
+                ),
+              ),
+            ),
           ),
-        );
-      },
+        ],
+      ],
     );
   }
 

@@ -158,6 +158,16 @@ class InvoiceService {
                           color: PdfColors.green800,
                         ),
                       ),
+                      if (order.razorpayPaymentId != null && order.razorpayPaymentId!.isNotEmpty) ...[  
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Txn ID: ${order.razorpayPaymentId}',
+                          style: const pw.TextStyle(
+                            fontSize: 8,
+                            color: PdfColors.grey700,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -271,6 +281,24 @@ class InvoiceService {
                             pw.Text('Rs. ${order.finalAmount.toStringAsFixed(0)}', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F3A20'))),
                           ],
                         ),
+                        if (order.razorpayPaymentId != null && order.razorpayPaymentId!.isNotEmpty) ...[
+                          pw.SizedBox(height: 6),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColor.fromHex('#F0FDF4'),
+                              borderRadius: pw.BorderRadius.circular(4),
+                              border: pw.Border.all(color: PdfColors.green300, width: 0.5),
+                            ),
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('Payment Ref:', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                                pw.Text(order.razorpayPaymentId!, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

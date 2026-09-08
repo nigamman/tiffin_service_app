@@ -191,7 +191,7 @@ class BookingRepository {
       orderId: orderId,
       razorpayOrderId: rzpOrderId,
       amount: finalAmount,
-      keyId: 'rzp_test_mockkey1234',
+      keyId: 'rzp_live_TZVB0lw5qdRPTq',
     );
   }
 

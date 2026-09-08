@@ -573,7 +573,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.pop(dialogContext);
                     context.read<AuthCubit>().signInWithGoogle();
                   },
-                  icon: const Icon(Icons.g_mobiledata, size: 28),
+                  icon: Image.asset(
+                    'assets/icons/google_icon.png',
+                    height: 20,
+                    width: 20,
+                    fit: BoxFit.contain,
+                  ),
                   label: const Text("Log In with Google"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0F3A20),
