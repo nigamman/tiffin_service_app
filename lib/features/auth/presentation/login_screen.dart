@@ -496,10 +496,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
-                        height: 20,
-                        width: 20,
+                      Image.asset(
+                        'assets/icons/google_icon.png',
+                        height: 22,
+                        width: 22,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(

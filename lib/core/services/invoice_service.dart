@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart' show BuildContext, ScaffoldMessenger, SnackBar, Text;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -24,8 +25,11 @@ class InvoiceService {
         name: 'AtithiBhoj_Invoice_$shortId.pdf',
       );
     } catch (e) {
+      final msg = e.toString().contains('MissingPluginException')
+          ? 'Native printing plugin not loaded. Please perform a full app rebuild / restart (stop app and run flutter run).'
+          : 'Failed to generate invoice: $e';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate invoice: $e')),
+        SnackBar(content: Text(msg)),
       );
     }
   }
@@ -35,6 +39,17 @@ class InvoiceService {
     UserProfile? user,
   }) async {
     final pdf = pw.Document();
+
+    pw.MemoryImage? playStoreIcon1;
+    pw.MemoryImage? playStoreIcon2;
+    try {
+      final iconBytes1 = await rootBundle.load('assets/icons/playstore-icon1.png');
+      playStoreIcon1 = pw.MemoryImage(iconBytes1.buffer.asUint8List());
+    } catch (_) {}
+    try {
+      final iconBytes2 = await rootBundle.load('assets/icons/playstore-icon2.png');
+      playStoreIcon2 = pw.MemoryImage(iconBytes2.buffer.asUint8List());
+    } catch (_) {}
 
     final shortId = order.id.length > 6
         ? order.id.toUpperCase().substring(order.id.length - 6)
@@ -198,9 +213,9 @@ class InvoiceService {
                   [
                     'Home Tiffin Meal (${order.frequency.toUpperCase().replaceAll('_', ' ')} Plan)\nQty: ${order.quantity} Box | Start: $startDateFormatted',
                     order.deliverySlot.toUpperCase(),
-                    '₹${order.pricePerMeal.toStringAsFixed(0)}',
+                    'Rs. ${order.pricePerMeal.toStringAsFixed(0)}',
                     '${order.totalMeals}',
-                    '₹${order.totalAmount.toStringAsFixed(0)}',
+                    'Rs. ${order.totalAmount.toStringAsFixed(0)}',
                   ],
                 ],
                 headerStyle: pw.TextStyle(
@@ -233,7 +248,7 @@ class InvoiceService {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Subtotal:', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                            pw.Text('₹${order.totalAmount.toStringAsFixed(0)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                            pw.Text('Rs. ${order.totalAmount.toStringAsFixed(0)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                           ],
                         ),
                         if (order.discountAmount > 0) ...[
@@ -242,7 +257,7 @@ class InvoiceService {
                             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                             children: [
                               pw.Text('Discount / Coupon:', style: const pw.TextStyle(fontSize: 10, color: PdfColors.red700)),
-                              pw.Text('-₹${order.discountAmount.toStringAsFixed(0)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
+                              pw.Text('-Rs. ${order.discountAmount.toStringAsFixed(0)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
                             ],
                           ),
                         ],
@@ -253,7 +268,7 @@ class InvoiceService {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Total Paid:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F3A20'))),
-                            pw.Text('₹${order.finalAmount.toStringAsFixed(0)}', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F3A20'))),
+                            pw.Text('Rs. ${order.finalAmount.toStringAsFixed(0)}', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F3A20'))),
                           ],
                         ),
                       ],
@@ -264,41 +279,49 @@ class InvoiceService {
 
               pw.Spacer(),
 
-              // 5. Footer & Employer Reimbursement Disclaimer
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(12),
-                decoration: pw.BoxDecoration(
-                  color: PdfColor.fromHex('#F1F5F2'),
-                  borderRadius: pw.BorderRadius.circular(6),
-                  border: pw.Border.all(color: PdfColor.fromHex('#0F3A20'), width: 0.5),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
-                  children: [
-                    pw.Text(
-                      'OFFICIAL REIMBURSEMENT RECEIPT',
-                      style: pw.TextStyle(
-                        fontSize: 9,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromHex('#0F3A20'),
-                        letterSpacing: 0.5,
+              // 5. Minimal Clean Footer
+              pw.UrlLink(
+                destination: 'https://play.google.com/store/apps/details?id=com.nigamman.atithibhoj',
+                child: pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F1F5F2'),
+                    borderRadius: pw.BorderRadius.circular(6),
+                    border: pw.Border.all(color: PdfColor.fromHex('#0F3A20'), width: 0.5),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Row(
+                        children: [
+                          pw.Text(
+                            'Download the App Now on ',
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#0F3A20'),
+                            ),
+                          ),
+                          if (playStoreIcon1 != null) ...[
+                            pw.Image(playStoreIcon1, width: 14, height: 14),
+                            pw.SizedBox(width: 4),
+                          ],
+                          pw.Text(
+                            'Google Play Store - Atithi Bhoj',
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#0F3A20'),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    pw.SizedBox(height: 3),
-                    pw.Text(
-                      'This is a computer-generated tax invoice for Atithi Bhoj Tiffin Service orders. Valid for corporate meal expense claims & tax filings.',
-                      textAlign: pw.TextAlign.center,
-                      style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
-                    ),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Center(
-                child: pw.Text(
-                  'Made with ❤️ by Atithi Bhoj  •  Kalyanpur, Kanpur',
-                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                      if (playStoreIcon2 != null)
+                        pw.Image(playStoreIcon2, height: 18, fit: pw.BoxFit.contain),
+                    ],
+                  ),
                 ),
               ),
             ],
