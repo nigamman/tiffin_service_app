@@ -159,7 +159,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _buildQuickActionTile(
                         context,
                         title: "Manage Incoming Orders",
-                        subtitle: "Track, skip, or modify active subscriptions",
+                        subtitle: "Track or modify active subscriptions",
                         icon: Icons.list_alt,
                         destination: const AdminOrderList(),
                       ),

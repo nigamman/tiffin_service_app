@@ -92,6 +92,7 @@ class BookingRepository {
     required String area,
     required String landmark,
     required String contactPhone,
+    String? deliveryInstructions,
     String? couponCode,
   }) async {
     // Retrieve currently cached user to link document
@@ -159,6 +160,7 @@ class BookingRepository {
       'houseNo': houseNo,
       'area': area,
       'landmark': landmark,
+      'deliveryInstructions': deliveryInstructions ?? '',
       'pricePerMeal': pricePerMeal,
       'mealsCount': mealsCount,
       'totalAmount': subtotal,

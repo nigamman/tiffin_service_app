@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'booking_cubit.dart';
+import '../../auth/presentation/auth_cubit.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
 import 'dart:math' as math;
@@ -21,6 +22,7 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
   late TextEditingController _areaController;
   late TextEditingController _landmarkController;
   late TextEditingController _phoneController;
+  late TextEditingController _instructionsController;
 
   bool _isDetecting = false;
   double? _gpsDistance;
@@ -33,11 +35,32 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
     _areaController = TextEditingController(text: state.area);
     _landmarkController = TextEditingController(text: state.landmark);
     _phoneController = TextEditingController(text: state.contactPhone);
+    _instructionsController = TextEditingController(text: state.deliveryInstructions);
 
-    // Automatically trigger GPS detection on page load!
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _detectLocation();
-    });
+    // Pre-fill from saved Auth UserProfile if checkout fields are empty
+    final authState = context.read<AuthCubit>().state;
+    if (authState is AuthAuthenticated) {
+      final user = authState.user;
+      if (_houseNoController.text.isEmpty && user.houseNo.isNotEmpty) {
+        _houseNoController.text = user.houseNo;
+      }
+      if (_areaController.text.isEmpty && user.area.isNotEmpty) {
+        _areaController.text = user.area;
+      }
+      if (_landmarkController.text.isEmpty && user.landmark.isNotEmpty) {
+        _landmarkController.text = user.landmark;
+      }
+      if (_phoneController.text.isEmpty && user.phone.isNotEmpty) {
+        _phoneController.text = user.phone;
+      }
+    }
+
+    // Automatically trigger GPS detection on page load if area is empty!
+    if (_areaController.text.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _detectLocation();
+      });
+    }
   }
 
   @override
@@ -46,6 +69,7 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
     _areaController.dispose();
     _landmarkController.dispose();
     _phoneController.dispose();
+    _instructionsController.dispose();
     super.dispose();
   }
 
@@ -112,7 +136,6 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
 
       String detectedHouseNo = "";
       String detectedArea = "";
-      String detectedLandmark = "";
 
       try {
         List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -123,7 +146,6 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
         if (placemarks.isNotEmpty) {
           final placemark = placemarks.first;
           
-          // 1. House / Flat No. (Use place.name if it represents a short number/code and not the area name)
           if (placemark.name != null && 
               placemark.name!.isNotEmpty && 
               placemark.name != placemark.subLocality && 
@@ -131,7 +153,6 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
             detectedHouseNo = placemark.name!;
           }
 
-          // 2. Area / Locality / Street
           final List<String> addressParts = [];
           if (placemark.thoroughfare != null && placemark.thoroughfare!.isNotEmpty && placemark.thoroughfare != placemark.name) {
             addressParts.add(placemark.thoroughfare!);
@@ -143,164 +164,66 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
             addressParts.add(placemark.locality!);
           }
           detectedArea = addressParts.isEmpty ? "Kalyanpur, Kanpur" : addressParts.join(", ");
-          
-          // Landmark is kept empty by default so the user can enter a custom point of reference (e.g. Near Temple).
         }
       } catch (_) {
         detectedArea = "Kalyanpur, Kanpur";
       }
 
-      if (distance <= 5.0) {
+      if (mounted) {
         setState(() {
-          _houseNoController.text = detectedHouseNo;
+          _isDetecting = false;
+          if (_houseNoController.text.isEmpty && detectedHouseNo.isNotEmpty) {
+            _houseNoController.text = detectedHouseNo;
+          }
           _areaController.text = detectedArea;
-          _landmarkController.text = detectedLandmark;
         });
-        
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                const Icon(Icons.check_circle_outline, color: AppTheme.successColor),
-                const SizedBox(width: 8),
-                Text(
-                  "Location Verified",
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                ),
-              ],
-            ),
-            content: Text(
-              "Success! You are ${distance.toStringAsFixed(2)} km from Kalyanpur, Kanpur which is inside our 5km delivery zone.",
-              style: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted, height: 1.45),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  "Proceed",
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
-                ),
-              ),
-            ],
-          ),
-        );
-      } else {
-        _showOutOfZoneDialog(distance);
       }
     } catch (e) {
-      setState(() {
-        _areaController.text = "";
-      });
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: AppTheme.secondaryMarigold),
-              const SizedBox(width: 8),
-              Text(
-                "GPS Error",
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.textDark),
-              ),
-            ],
-          ),
-          content: Text(
-            e.toString(),
-            style: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted, height: 1.45),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                "Cancel",
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.textMuted),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _detectLocation();
-              },
-              child: Text(
-                "Retry",
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
-              ),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      setState(() {
-        _isDetecting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isDetecting = false;
+          _areaController.text = "Kalyanpur, Kanpur";
+        });
+      }
     }
   }
 
   bool _isWithinDeliveryZone(String area, String landmark) {
-    final cleanArea = area.toLowerCase();
-    final cleanLandmark = landmark.toLowerCase();
-    
-    final List<String> validZones = [
-      'kalyanpur',
-      'iit kanpur',
-      'iitk',
-      'sharda nagar',
-      'indira nagar',
-      'gooba garden',
-      'kanpur university',
-      'csjmu',
-      'rawatpur',
-      'kakadeo',
-      'naramau',
-      'ganga vihar',
-      'bithoor',
-      'gurdwan',
-      'awas vikas',
-      'awaas vikas',
-      'keshav puram',
-      'singhpur'
+    final search = "$area $landmark".toLowerCase();
+    final allowedAreas = [
+      'kalyanpur', 'indira nagar', 'indiranagar', 'kakadeo', 'kakadev',
+      'iit', 'rawatpur', 'csjmu', 'university', 'geeta nagar', 'pant nagar',
+      'vishwavidyalaya', 'gurudev', 'sharda nagar', 'crossings', 'kanpur'
     ];
-    
-    for (final zone in validZones) {
-      if (cleanArea.contains(zone) || cleanLandmark.contains(zone)) {
-        return true;
-      }
-    }
-    
-    return false;
+    return allowedAreas.any((a) => search.contains(a));
   }
 
   void _showOutOfZoneDialog(double? distance) {
-    final distanceStr = distance != null 
-        ? "Your detected distance is ${distance.toStringAsFixed(2)} km."
-        : "Locations outside Kalyanpur (e.g. Swaroop Nagar, Civil Lines) are not deliverable yet.";
-        
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.location_off_outlined, color: AppTheme.errorColor),
-            const SizedBox(width: 8),
+            const Icon(Icons.location_off, color: AppTheme.errorColor),
+            const SizedBox(width: 10),
             Text(
-              "Out of Delivery Zone",
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.textDark),
+              "Outside Delivery Zone",
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
             ),
           ],
         ),
         content: Text(
-          "Sorry, we currently only deliver within a 5km range of Kalyanpur, Kanpur. $distanceStr",
-          style: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted, height: 1.45),
+          distance != null
+              ? "Your detected location is ${distance.toStringAsFixed(1)}km away from Kalyanpur. We currently deliver only within 5km radius."
+              : "The entered area is outside our 5km Kalyanpur delivery radius.",
+          style: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMuted),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: Text(
-              "Update Location",
+              "Change Address",
               style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
             ),
           ),
@@ -331,7 +254,17 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
             area: areaText,
             landmark: landmarkText,
             phone: _phoneController.text.trim(),
+            deliveryInstructions: _instructionsController.text.trim(),
           );
+      
+      // Auto-save updated address & phone to User Profile in AuthCubit & Firestore
+      context.read<AuthCubit>().syncAddressAndPhone(
+            houseNo: _houseNoController.text.trim(),
+            area: areaText,
+            landmark: landmarkText,
+            phone: _phoneController.text.trim(),
+          );
+
       context.read<BookingCubit>().nextStep();
     }
   }
@@ -496,6 +429,61 @@ class _DeliveryDetailsStepState extends State<DeliveryDetailsStep> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 18),
+
+            // Delivery Instructions
+            Text(
+              "Delivery Instructions (Optional)",
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark.withOpacity(0.8)),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                "🚪 Leave at Doorstep",
+                "🛡️ Leave with Guard",
+                "🔔 Ring Doorbell",
+                "📞 Call on Arrival",
+              ].map((chipLabel) {
+                final isSelected = _instructionsController.text == chipLabel;
+                return ChoiceChip(
+                  label: Text(
+                    chipLabel,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.5,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      color: isSelected ? Colors.white : AppTheme.textDark,
+                    ),
+                  ),
+                  selected: isSelected,
+                  selectedColor: AppTheme.primaryGreen,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: isSelected ? AppTheme.primaryGreen : Colors.grey.shade300,
+                    ),
+                  ),
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _instructionsController.text = chipLabel;
+                      } else {
+                        _instructionsController.clear();
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _instructionsController,
+              decoration: const InputDecoration(
+                hintText: "e.g. Gate code #1234 or special notes",
+              ),
             ),
             const SizedBox(height: 24),
             CustomButton(

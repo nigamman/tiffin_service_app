@@ -49,36 +49,4 @@ class OrdersCubit extends Cubit<OrdersState> {
       emit(OrdersError(e.toString().replaceAll('Exception: ', '')));
     }
   }
-
-  Future<void> skipDeliveryDate(String orderId, DateTime date) async {
-    try {
-      await _repository.skipDate(orderId, date);
-      // Reload orders list to update UI state
-      await loadOrders();
-    } catch (e) {
-      emit(OrdersError(e.toString().replaceAll('Exception: ', '')));
-      // Reload to ensure state is synchronized
-      await loadOrders();
-    }
-  }
-
-  Future<void> skipSlot(String orderId, String slotKey) async {
-    try {
-      await _repository.skipSlot(orderId, slotKey);
-      await loadOrders();
-    } catch (e) {
-      emit(OrdersError(e.toString().replaceAll('Exception: ', '')));
-      await loadOrders();
-    }
-  }
-
-  Future<void> unskipSlot(String orderId, String slotKey) async {
-    try {
-      await _repository.unskipSlot(orderId, slotKey);
-      await loadOrders();
-    } catch (e) {
-      emit(OrdersError(e.toString().replaceAll('Exception: ', '')));
-      await loadOrders();
-    }
-  }
 }

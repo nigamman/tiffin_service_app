@@ -165,7 +165,7 @@ class _PolicyCenterScreenState extends State<PolicyCenterScreen> {
           _buildSectionHeader("Our Core Pillars"),
           _buildBulletPoint("Hygienic Preparation: Prepared in FSSAI-compliant clean kitchens with premium ingredients and minimal oil."),
           _buildBulletPoint("Nutritious & Balanced: Weekly rotational menu crafted to provide home-style nutrition without commercial preservatives."),
-          _buildBulletPoint("Flexible Subscriptions: Pause, skip meals, or customize delivery slots effortlessly via our mobile app."),
+          _buildBulletPoint("Flexible Subscriptions: Choose weekly or monthly plans and customize delivery slots effortlessly."),
           const SizedBox(height: 16),
           _buildSectionHeader("Business Entity Info"),
           _buildInfoRow("Business Name", "Atithi Bhoj Tiffin Services"),
@@ -286,11 +286,6 @@ class _PolicyCenterScreenState extends State<PolicyCenterScreen> {
           ),
           _buildBulletPoint("Please notify customer support within 2 hours of the delivery window."),
           _buildBulletPoint("We issue an immediate replacement or credit equal to the meal cost back to your account."),
-          const SizedBox(height: 16),
-          _buildSectionHeader("4. Daily Meal Skipping & Extensibility"),
-          _buildParagraph(
-            "You do not need to cancel your entire subscription to skip a day! Simply tap 'Skip Meal' in your app before cutoff times (9:30 AM for Lunch / 5:00 PM for Dinner). Skipped meals automatically extend your subscription duration at zero cost.",
-          ),
         ],
       ),
     );
@@ -315,9 +310,9 @@ class _PolicyCenterScreenState extends State<PolicyCenterScreen> {
           _buildBulletPoint("Kakadeo & Coaching Hub"),
           _buildBulletPoint("Indira Nagar & Rawatpur"),
           const SizedBox(height: 16),
-          _buildSectionHeader("2. Daily Delivery Timings & Cutoff Rules"),
-          _buildTimingRow("Lunch Delivery Window", "12:00 PM – 2:00 PM", "Skip/Order Cutoff: 9:30 AM"),
-          _buildTimingRow("Dinner Delivery Window", "7:00 PM – 9:00 PM", "Skip/Order Cutoff: 5:00 PM"),
+          _buildSectionHeader("2. Daily Delivery Timings"),
+          _buildTimingRow("Lunch Delivery Window", "12:00 PM – 2:00 PM", "Daily Fresh Cooking"),
+          _buildTimingRow("Dinner Delivery Window", "7:00 PM – 9:00 PM", "Daily Fresh Cooking"),
           const SizedBox(height: 16),
           _buildSectionHeader("3. Delivery Fees & Packaging"),
           _buildParagraph(

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'orders_cubit.dart';
 import '../data/orders_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/notification_overlay.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'order_details_screen.dart';
+import '../../../core/services/invoice_service.dart';
+import '../../auth/presentation/auth_cubit.dart';
 
 class SubscriptionDetailsScreen extends StatelessWidget {
   final OrderModel order;
@@ -31,6 +35,157 @@ class _SubscriptionDetailsView extends StatefulWidget {
 }
 
 class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
+  void _openWhatsAppSupport(BuildContext context, OrderModel order, String issueTitle) async {
+    final orderShortId = order.id.length > 6 
+        ? order.id.toUpperCase().substring(order.id.length - 6) 
+        : order.id.toUpperCase();
+    final message = "Hi Atithi Bhoj Support, I need assistance with Order #$orderShortId (${order.frequency.toUpperCase()} plan, ${order.deliverySlot.toUpperCase()} slot).\n\n"
+        "Issue: $issueTitle\n"
+        "Contact Phone: +91 ${order.contactPhone}\n"
+        "Delivery Address: ${order.houseNo}, ${order.area}";
+
+    final url = "https://wa.me/919119724875?text=${Uri.encodeComponent(message)}";
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not launch WhatsApp. Please contact +91 9119724875 directly.")),
+        );
+      }
+    }
+  }
+
+  void _showWhatsAppSupportModal(BuildContext context, OrderModel order) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.support_agent, color: Colors.green.shade700, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "1-Tap WhatsApp Support",
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                        Text(
+                          "Select issue for Order #${order.id.toUpperCase().substring(order.id.length - 6)}",
+                          style: GoogleFonts.poppins(
+                            fontSize: 11.5,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildSupportOptionTile(
+                ctx,
+                icon: Icons.delivery_dining,
+                title: "Meal Not Received Today",
+                subtitle: "Marked delivered or past delivery time slot",
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openWhatsAppSupport(context, order, "Meal Not Received Today");
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100),
+              _buildSupportOptionTile(
+                ctx,
+                icon: Icons.soup_kitchen_outlined,
+                title: "Packaging or Spilled Tiffin",
+                subtitle: "Damaged container or quality feedback",
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openWhatsAppSupport(context, order, "Packaging or Quality Issue");
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100),
+              _buildSupportOptionTile(
+                ctx,
+                icon: Icons.access_time,
+                title: "Delivery Time & ETA Inquiry",
+                subtitle: "Check expected arrival time for today's slot",
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openWhatsAppSupport(context, order, "Delivery Time Inquiry");
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100),
+              _buildSupportOptionTile(
+                ctx,
+                icon: Icons.chat_bubble_outline,
+                title: "General Order Assistance",
+                subtitle: "Address change, payment, or custom question",
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openWhatsAppSupport(context, order, "General Order Query");
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSupportOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryGreen.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppTheme.primaryGreen, size: 20),
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textMuted),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: AppTheme.textMuted, size: 18),
+      onTap: onTap,
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<OrdersCubit, OrdersState>(
@@ -88,61 +243,21 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     final remainingMeals = order.remainingMeals;
     final double progressPercent = order.progressPercent;
 
-    final int maxDays = order.frequency == 'one-time' ? 1 : order.remainingMeals;
-    final int daysLimit = maxDays < 7 ? maxDays : 7;
-
-    // Helper to check if a date is fully skipped
-    bool isDateFullySkipped(OrderModel order, DateTime date) {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
-      final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(date));
-      if (isDaySkipped) return true;
-
-      final List<String> activeSlots = [];
-      if (order.deliverySlot == 'lunch' || order.deliverySlot == 'both') {
-        activeSlots.add('lunch');
-      }
-      if (order.deliverySlot == 'dinner' || order.deliverySlot == 'both') {
-        activeSlots.add('dinner');
-      }
-      
-      if (activeSlots.isEmpty) return false;
-      return activeSlots.every((slot) => order.skippedSlots.contains("${dateStr}_$slot"));
-    }
-
-    // List of next delivery days to show (loop until we collect daysLimit of non-skipped scheduled meals)
-    final List<DateTime> nextDays = [];
-    DateTime checkDate = todayNormalized.isBefore(DateTime(order.startDate.year, order.startDate.month, order.startDate.day))
-        ? DateTime(order.startDate.year, order.startDate.month, order.startDate.day)
-        : todayNormalized;
+    // List of all delivery days in the subscription plan (from startDate)
+    final List<DateTime> allPlanDays = [];
+    final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
+    DateTime checkDate = startNormalized;
     
-    int scheduledMealsCount = 0;
-    int safetyLimit = 30; // safety ceiling to prevent infinite loop
+    int totalSlotsCollected = 0;
+    int safetyLimit = 60; // safety ceiling
 
-    while (scheduledMealsCount < daysLimit && safetyLimit > 0) {
+    while (totalSlotsCollected < totalMeals && safetyLimit > 0) {
       if (_isDeliveryDay(checkDate, order.frequency)) {
-        nextDays.add(checkDate);
-        if (!isDateFullySkipped(order, checkDate)) {
-          scheduledMealsCount++;
-        }
+        allPlanDays.add(checkDate);
+        totalSlotsCollected += (order.deliverySlot == 'both' ? 2 : 1);
       }
       checkDate = checkDate.add(const Duration(days: 1));
       safetyLimit--;
-    }
-
-    // Count skipped slots in these days
-    int skipCount = 0;
-    for (final day in nextDays) {
-      final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(day));
-      if (isDaySkipped) {
-        skipCount++;
-        continue;
-      }
-      for (final slot in ['lunch', 'dinner']) {
-        final slotKey = "${DateFormat('yyyy-MM-dd').format(day)}_$slot";
-        if (order.skippedSlots.contains(slotKey)) {
-          skipCount++;
-        }
-      }
     }
 
     final bool isOneTime = order.frequency == 'one-time';
@@ -156,59 +271,37 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
           _buildPlanOverviewCard(context, order, remainingMeals, totalMeals, progressPercent),
 
           if (!isOneTime) ...[
-            // 2. Next 7 Days Delivery Schedule
+            // 2. Complete Delivery Schedule & History Log
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        daysLimit == 1 ? "Next Day's Schedule" : "Next $daysLimit Days Schedule",
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFC3A575).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          "2 Hrs Cutoff Enforced",
-                          style: GoogleFonts.poppins(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFFC3A575),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
                   Text(
-                    "Weekly Skip Limit: $skipCount / 1 used (Pausing extends your plan)",
+                    "Delivery Schedule & Log",
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  Text(
+                    "${order.deliveredMeals} of $totalMeals Delivered",
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: skipCount >= 1 ? AppTheme.errorColor : AppTheme.textMuted,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGreen,
                     ),
                   ),
                 ],
               ),
             ),
 
-            _buildSevenDayScheduleList(context, order, skipCount, nextDays),
+            _buildSevenDayScheduleList(context, order, allPlanDays),
           ],
 
           // 3. Billing & Address section
-          _buildBillingDetailsCard(order),
+          _buildBillingDetailsCard(context, order),
           
           const SizedBox(height: 36),
         ],
@@ -305,7 +398,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Subscription Progress",
+                  "Delivered: ${order.deliveredMeals} Got  •  Remaining: ${order.remainingMeals} Left",
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: AppTheme.textMuted,
@@ -313,7 +406,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
                   ),
                 ),
                 Text(
-                  "$remainingMeals of $totalMeals meals left",
+                  "${(order.progressPercent * 100).toStringAsFixed(0)}% Consumed",
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -342,6 +435,28 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
               ),
             ),
           ],
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primaryGreen,
+              side: const BorderSide(color: AppTheme.primaryGreen, width: 1.2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              minimumSize: const Size(double.infinity, 42),
+            ),
+            icon: const Icon(Icons.pedal_bike, size: 16),
+            label: Text(
+              "Track Today's Live Delivery Status",
+              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => OrderDetailsScreen(order: order),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -364,7 +479,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     );
   }
 
-  Widget _buildSevenDayScheduleList(BuildContext context, OrderModel order, int skipCount, List<DateTime> nextDays) {
+  Widget _buildSevenDayScheduleList(BuildContext context, OrderModel order, List<DateTime> nextDays) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -380,11 +495,6 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
         final dateLabel = DateFormat('dd MMM').format(dayDate);
         
         final isToday = dayDate.isAtSameMomentAs(today);
-
-        // Check if the entire day is skipped in order.skippedDates
-        final isFullDaySkipped = order.skippedDates.any(
-          (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(dayDate),
-        );
 
         // Sub-elements for active slots
         final List<String> activeSlots = [];
@@ -436,38 +546,14 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
                       ),
                     ],
                   ),
-                  if (isFullDaySkipped)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.errorColor.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        "DAY SKIPPED",
-                        style: GoogleFonts.poppins(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.errorColor,
-                        ),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(height: 12),
               
               // Dynamic slots list for this day
               ...activeSlots.map((slot) {
-                final slotKey = "${DateFormat('yyyy-MM-dd').format(dayDate)}_$slot";
-                final isSlotSkipped = isFullDaySkipped || order.skippedSlots.contains(slotKey);
-                
-                // Determine skip cutoff time for this slot
-                int cutoffHour = slot == 'lunch' ? 9 : 17; // 9:30 AM or 5:00 PM
-                int cutoffMinute = slot == 'lunch' ? 30 : 0;
                 final deliveryStart = slot == 'lunch' ? "11:30 AM" : "7:00 PM";
-                
-                final slotCutoff = DateTime(dayDate.year, dayDate.month, dayDate.day, cutoffHour, cutoffMinute);
-                final canToggle = now.isBefore(slotCutoff);
+                final isDelivered = order.isSlotDelivered(dayDate, slot);
 
                 return Container(
                   margin: const EdgeInsets.only(top: 8),
@@ -493,103 +579,39 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
                               style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: isSlotSkipped ? AppTheme.textMuted : AppTheme.textDark,
-                                decoration: isSlotSkipped ? TextDecoration.lineThrough : null,
+                                color: AppTheme.textDark,
                               ),
                             ),
                             Text(
-                              isSlotSkipped 
-                                  ? "Skipped - subscription extended" 
-                                  : "Starts at $deliveryStart",
+                              "Starts at $deliveryStart",
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
-                                color: isSlotSkipped ? AppTheme.errorColor : AppTheme.textMuted,
+                                color: AppTheme.textMuted,
                               ),
                             ),
                           ],
                         ),
                       ),
                       
-                      // Action Toggle Button
-                      if (canToggle && !isFullDaySkipped) ...[
-                        Builder(
-                          builder: (context) {
-                            final bool hasReachedSkipLimit = skipCount >= 1;
-                            final bool isSkipDisabled = !isSlotSkipped && hasReachedSkipLimit;
-
-                            return SizedBox(
-                              height: 32,
-                              child: ElevatedButton(
-                                onPressed: isSkipDisabled
-                                    ? null
-                                    : () {
-                                        if (isSlotSkipped) {
-                                          context.read<OrdersCubit>().unskipSlot(order.id, slotKey);
-                                          NotificationOverlay.show(
-                                            context,
-                                            title: "Delivery Restored",
-                                            message: "${slot.toUpperCase()} delivery restored for $dateLabel.",
-                                            icon: Icons.check_circle_outline,
-                                          );
-                                        } else {
-                                          context.read<OrdersCubit>().skipSlot(order.id, slotKey);
-                                          NotificationOverlay.show(
-                                            context,
-                                            title: "Delivery Paused",
-                                            message: "${slot.toUpperCase()} delivery skipped for $dateLabel.",
-                                            icon: Icons.pause_circle_outline,
-                                          );
-                                        }
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isSlotSkipped 
-                                      ? AppTheme.primaryGreen 
-                                      : (isSkipDisabled ? AppTheme.borderLight : Colors.white),
-                                  foregroundColor: isSlotSkipped 
-                                      ? Colors.white 
-                                      : (isSkipDisabled ? AppTheme.textMuted : AppTheme.secondaryMarigold),
-                                  elevation: 0,
-                                  side: BorderSide(
-                                    color: isSlotSkipped 
-                                        ? Colors.transparent 
-                                        : (isSkipDisabled ? Colors.transparent : AppTheme.secondaryMarigold),
-                                    width: 1.2,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                child: Text(
-                                  isSlotSkipped ? "Unskip" : (isSkipDisabled ? "Locked" : "Skip"),
-                                  style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            );
-                          }
-                        ),
-                      ]
-                      else ...[
-                        // Finalized status icon/badge
-                        Row(
-                          children: [
-                            Icon(
-                              isSlotSkipped ? Icons.block_outlined : Icons.lock_outline,
-                              size: 13,
-                              color: AppTheme.textMuted,
+                      // Status icon/badge
+                      Row(
+                        children: [
+                          Icon(
+                            isDelivered ? Icons.check_circle_outline : Icons.schedule,
+                            size: 14,
+                            color: isDelivered ? AppTheme.successColor : AppTheme.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isDelivered ? "Delivered" : "Scheduled",
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDelivered ? AppTheme.successColor : AppTheme.textMuted,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isSlotSkipped 
-                                  ? "Skipped" 
-                                  : (dayDate.isBefore(today) ? "Delivered" : "Finalized"),
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: isSlotSkipped ? AppTheme.errorColor : AppTheme.successColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 );
@@ -601,7 +623,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
     );
   }
 
-  Widget _buildBillingDetailsCard(OrderModel order) {
+  Widget _buildBillingDetailsCard(BuildContext context, OrderModel order) {
     final String daysLabel = order.frequency == 'one-time' ? "1 Day" : "${order.mealsCount} Days";
     final slotMultiplier = order.deliverySlot == 'both' ? 2 : 1;
     
@@ -654,6 +676,52 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
           _buildBillingRow("Total Paid", "₹${order.finalAmount.toStringAsFixed(0)}", isHighlight: true),
           const SizedBox(height: 10),
           _buildBillingRow("Contact Phone", order.contactPhone),
+          if (order.deliveryInstructions.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildBillingRow("Instructions", order.deliveryInstructions),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: Text(
+                "Download PDF Invoice",
+                style: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                final authState = context.read<AuthCubit>().state;
+                final user = authState is AuthAuthenticated ? authState.user : null;
+                InvoiceService.downloadOrPrintInvoice(context, order, user: user);
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green.shade700,
+                side: BorderSide(color: Colors.green.shade600, width: 1.2),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: Colors.green.shade50.withOpacity(0.4),
+              ),
+              icon: const Icon(Icons.chat, size: 18, color: Color(0xFF25D366)),
+              label: Text(
+                "Need Help? Contact WhatsApp Support",
+                style: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () => _showWhatsAppSupportModal(context, order),
+            ),
+          ),
         ],
       ),
     );

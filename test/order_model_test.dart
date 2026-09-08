@@ -29,7 +29,7 @@ void main() {
       expect(order.totalMeals, equals(5));
       expect(order.deliveredMeals, equals(0));
       expect(order.remainingMeals, equals(5));
-      expect(order.progressPercent, equals(1.0));
+      expect(order.progressPercent, equals(0.0));
     });
 
     test('correctly calculates total meals based on slots', () {
@@ -79,42 +79,6 @@ void main() {
 
       expect(lunchOrder.totalMeals, equals(5));
       expect(bothSlotsOrder.totalMeals, equals(10));
-    });
-
-    test('deducts skipped dates and slot skips from elapsed count', () {
-      final now = DateTime.now();
-      // Start date 5 days ago to ensure multiple past delivery days
-      final startDate = now.subtract(const Duration(days: 5));
-      
-      // Let's create an order that started 5 days ago (weekly - Mon-Fri)
-      final order = OrderModel(
-        id: 'test_id_4',
-        frequency: 'weekly', // Mon-Fri
-        quantity: 1,
-        startDate: startDate,
-        deliverySlot: 'lunch',
-        contactPhone: '9999999999',
-        houseNo: '10/482',
-        area: 'Kalyanpur',
-        landmark: 'Near Temple',
-        pricePerMeal: 80.0,
-        mealsCount: 5,
-        totalAmount: 400.0,
-        discountAmount: 0.0,
-        finalAmount: 400.0,
-        paymentStatus: 'paid',
-        orderStatus: 'confirmed',
-        // Skip one past date entirely, and one specific slot (which we mock here)
-        skippedDates: [startDate.add(const Duration(days: 1))],
-        skippedSlots: [],
-        createdAt: startDate,
-      );
-
-      // deliveredMeals depends on today's time/day, but it should be:
-      // totalElapsedSlots - totalSkips.
-      // Since it's weekly (Mon-Fri), we can assert it computes a value within bounds [0, 5].
-      expect(order.deliveredMeals, lessThanOrEqualTo(5));
-      expect(order.remainingMeals, greaterThanOrEqualTo(0));
     });
 
     test('isDeliveryDay resolves correct delivery days', () {

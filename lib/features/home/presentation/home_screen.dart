@@ -772,7 +772,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "Get home-cooked meals delivered daily. Pause or skip anytime.",
+                  "Get home-cooked meals delivered daily with flexible options.",
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     color: AppTheme.textMuted,

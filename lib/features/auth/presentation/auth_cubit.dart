@@ -182,6 +182,26 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  Future<void> syncAddressAndPhone({
+    required String houseNo,
+    required String area,
+    required String landmark,
+    required String phone,
+  }) async {
+    if (state is! AuthAuthenticated) return;
+    try {
+      final updated = await _repository.syncAddressAndPhone(
+        houseNo: houseNo,
+        area: area,
+        landmark: landmark,
+        phone: phone,
+      );
+      if (updated != null) {
+        emit(AuthAuthenticated(updated));
+      }
+    } catch (_) {}
+  }
+
   Future<void> signInWithGoogle() async {
     emit(AuthLoading());
     try {

@@ -12,6 +12,7 @@ class OrderModel {
   final String houseNo;
   final String area;
   final String landmark;
+  final String deliveryInstructions;
   final double pricePerMeal;
   final int mealsCount;
   final double totalAmount;
@@ -39,6 +40,7 @@ class OrderModel {
     this.houseNo = '',
     this.area = '',
     this.landmark = '',
+    this.deliveryInstructions = '',
     required this.pricePerMeal,
     required this.mealsCount,
     required this.totalAmount,
@@ -63,6 +65,47 @@ class OrderModel {
     return mealsCount * slotMultiplier;
   }
 
+  bool isSlotDelivered(DateTime date, String slot) {
+    final now = DateTime.now();
+    final todayNormalized = DateTime(now.year, now.month, now.day);
+    final targetNorm = DateTime(date.year, date.month, date.day);
+    final todayStr = DateFormat('yyyy-MM-dd').format(todayNormalized);
+
+    if (targetNorm.isBefore(todayNormalized)) {
+      return true;
+    }
+
+    if (targetNorm.isAtSameMomentAs(todayNormalized)) {
+      final currentFloatTime = now.hour + (now.minute / 60.0);
+      final isTimePassed = (slot == 'lunch' && currentFloatTime >= 13.5) ||
+          (slot == 'dinner' && currentFloatTime >= 21.0);
+      if (isTimePassed) return true;
+
+      // Check slot-specific admin status updates
+      if (slot == 'lunch') {
+        if (todayLunchStatusDate == todayStr && todayLunchStatus?.toLowerCase() == 'delivered') {
+          return true;
+        }
+      } else if (slot == 'dinner') {
+        if (todayDinnerStatusDate == todayStr && todayDinnerStatus?.toLowerCase() == 'delivered') {
+          return true;
+        }
+      }
+
+      // Check general today delivery status admin update
+      if (todayDeliveryStatusDate == todayStr && todayDeliveryStatus?.toLowerCase() == 'delivered') {
+        if (deliverySlot == 'both') {
+          if (slot == 'lunch') return true;
+          if (slot == 'dinner' && now.hour >= 15) return true;
+        } else if (deliverySlot == slot) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   int get deliveredMeals {
     final now = DateTime.now();
     final todayNormalized = DateTime(now.year, now.month, now.day);
@@ -74,69 +117,22 @@ class OrderModel {
     }
 
     int totalElapsedSlots = 0;
-    final currentHour = now.hour;
-    final currentMinute = now.minute;
-    final currentFloatTime = currentHour + (currentMinute / 60.0);
-
     final int totalDays = todayNormalized.difference(startNormalized).inDays;
     for (int i = 0; i <= totalDays; i++) {
       final checkDate = startNormalized.add(Duration(days: i));
       if (isDeliveryDay(checkDate, frequency)) {
-        if (checkDate.isBefore(todayNormalized)) {
-          // Past day: all slots elapsed
-          totalElapsedSlots += (deliverySlot == 'both' ? 2 : 1);
-        } else if (checkDate.isAtSameMomentAs(todayNormalized)) {
-          // Today: check which slots have actually finished delivery window
-          if (deliverySlot == 'lunch') {
-            if (currentFloatTime >= 13.5) { // Lunch ends at 1:30 PM (13.5)
-              totalElapsedSlots += 1;
-            }
-          } else if (deliverySlot == 'dinner') {
-            if (currentFloatTime >= 21.0) { // Dinner ends at 9:00 PM (21.0)
-              totalElapsedSlots += 1;
-            }
-          } else if (deliverySlot == 'both') {
-            if (currentFloatTime >= 21.0) {
-              totalElapsedSlots += 2; // both lunch and dinner ended
-            } else if (currentFloatTime >= 13.5) {
-              totalElapsedSlots += 1; // only lunch ended
-            }
-          }
+        if (deliverySlot == 'lunch') {
+          if (isSlotDelivered(checkDate, 'lunch')) totalElapsedSlots += 1;
+        } else if (deliverySlot == 'dinner') {
+          if (isSlotDelivered(checkDate, 'dinner')) totalElapsedSlots += 1;
+        } else if (deliverySlot == 'both') {
+          if (isSlotDelivered(checkDate, 'lunch')) totalElapsedSlots += 1;
+          if (isSlotDelivered(checkDate, 'dinner')) totalElapsedSlots += 1;
         }
       }
     }
 
-    // Build a Set of unique skipped meal slot keys to avoid double-counting between skippedDates and skippedSlots
-    final Set<String> uniqueSkippedSlotKeys = {};
-
-    for (final d in skippedDates) {
-      final dLocal = d.toLocal();
-      final dateNorm = DateTime(dLocal.year, dLocal.month, dLocal.day);
-      if (!dateNorm.isAfter(todayNormalized)) {
-        final dateStr = DateFormat('yyyy-MM-dd').format(dateNorm);
-        if (deliverySlot == 'both') {
-          uniqueSkippedSlotKeys.add('${dateStr}_lunch');
-          uniqueSkippedSlotKeys.add('${dateStr}_dinner');
-        } else {
-          uniqueSkippedSlotKeys.add('${dateStr}_$deliverySlot');
-        }
-      }
-    }
-
-    for (final slotKey in skippedSlots) {
-      try {
-        final dateStr = slotKey.split('_')[0];
-        final slotDate = DateTime.parse(dateStr).toLocal();
-        final dateNorm = DateTime(slotDate.year, slotDate.month, slotDate.day);
-        if (!dateNorm.isAfter(todayNormalized)) {
-          uniqueSkippedSlotKeys.add(slotKey);
-        }
-      } catch (_) {}
-    }
-
-    final totalSkips = uniqueSkippedSlotKeys.length;
-    final effectiveDelivered = totalElapsedSlots - totalSkips;
-    return effectiveDelivered.clamp(0, totalMeals);
+    return totalElapsedSlots.clamp(0, totalMeals);
   }
 
   int get remainingMeals {
@@ -144,7 +140,7 @@ class OrderModel {
   }
 
   double get progressPercent {
-    return totalMeals > 0 ? remainingMeals / totalMeals : 0.0;
+    return totalMeals > 0 ? deliveredMeals / totalMeals : 0.0;
   }
 
   bool isScheduledForDate(DateTime targetDate) {
@@ -152,33 +148,11 @@ class OrderModel {
     if (remainingMeals <= 0) return false;
 
     final targetNormalized = DateTime(targetDate.year, targetDate.month, targetDate.day);
-    final targetStr = DateFormat('yyyy-MM-dd').format(targetDate);
 
     final startLocal = startDate.toLocal();
     final startNormalized = DateTime(startLocal.year, startLocal.month, startLocal.day);
 
     if (targetNormalized.isBefore(startNormalized)) return false;
-
-    // Check full-day skipped dates
-    final isDaySkipped = skippedDates.any((d) {
-      final dLocal = d.toLocal();
-      return DateTime(dLocal.year, dLocal.month, dLocal.day)
-          .isAtSameMomentAs(targetNormalized);
-    });
-    if (isDaySkipped) return false;
-
-    // Check slot skips
-    if (deliverySlot == 'lunch' && skippedSlots.contains('${targetStr}_lunch')) {
-      return false;
-    }
-    if (deliverySlot == 'dinner' && skippedSlots.contains('${targetStr}_dinner')) {
-      return false;
-    }
-    if (deliverySlot == 'both' &&
-        skippedSlots.contains('${targetStr}_lunch') &&
-        skippedSlots.contains('${targetStr}_dinner')) {
-      return false;
-    }
 
     if (frequency == 'one-time') {
       return startNormalized.isAtSameMomentAs(targetNormalized);
@@ -284,6 +258,7 @@ class OrderModel {
       houseNo: map['houseNo'] ?? '',
       area: map['area'] ?? '',
       landmark: map['landmark'] ?? '',
+      deliveryInstructions: map['deliveryInstructions'] ?? '',
       pricePerMeal: (map['pricePerMeal'] as num?)?.toDouble() ?? 80.0,
       mealsCount: map['mealsCount'] ?? 1,
       totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 80.0,
@@ -314,6 +289,7 @@ class OrderModel {
       'houseNo': houseNo,
       'area': area,
       'landmark': landmark,
+      'deliveryInstructions': deliveryInstructions,
       'pricePerMeal': pricePerMeal,
       'mealsCount': mealsCount,
       'totalAmount': totalAmount,
@@ -347,72 +323,6 @@ class OrdersRepository {
     final paidOrders = allOrders.where((o) => o['paymentStatus'] == 'paid').toList();
     
     return paidOrders.map((o) => OrderModel.fromMap(o)).toList();
-  }
-
-  Future<OrderModel> skipDate(String orderId, DateTime date) async {
-    final order = await _db.docGet('orders', orderId);
-    if (order == null) throw Exception('Order not found');
-
-    final List skippedRaw = order['skippedDates'] as List? ?? [];
-    final List<String> skippedStrings = List<String>.from(skippedRaw);
-    
-    final cleanDateString = DateTime(date.year, date.month, date.day).toIso8601String();
-    
-    if (skippedStrings.contains(cleanDateString)) {
-      throw Exception('This date is already skipped');
-    }
-
-    skippedStrings.add(cleanDateString);
-
-    // Update orders document in Firestore
-    await _db.docUpdate('orders', orderId, {
-      'skippedDates': skippedStrings,
-    });
-
-    final updatedDoc = await _db.docGet('orders', orderId);
-    return OrderModel.fromMap(updatedDoc!);
-  }
-
-  Future<OrderModel> skipSlot(String orderId, String slotKey) async {
-    final order = await _db.docGet('orders', orderId);
-    if (order == null) throw Exception('Order not found');
-
-    final List skippedRaw = order['skippedSlots'] as List? ?? [];
-    final List<String> skippedStrings = List<String>.from(skippedRaw);
-    
-    if (skippedStrings.contains(slotKey)) {
-      throw Exception('This slot is already skipped');
-    }
-
-    skippedStrings.add(slotKey);
-
-    await _db.docUpdate('orders', orderId, {
-      'skippedSlots': skippedStrings,
-    });
-
-    final updatedDoc = await _db.docGet('orders', orderId);
-    return OrderModel.fromMap(updatedDoc!);
-  }
-
-  Future<OrderModel> unskipSlot(String orderId, String slotKey) async {
-    final order = await _db.docGet('orders', orderId);
-    if (order == null) throw Exception('Order not found');
-
-    final List skippedRaw = order['skippedSlots'] as List? ?? [];
-    final List<String> skippedStrings = List<String>.from(skippedRaw);
-    
-    if (!skippedStrings.contains(slotKey)) {
-      throw Exception('This slot is not skipped');
-    }
-
-    skippedStrings.remove(slotKey);
-
-    await _db.docUpdate('orders', orderId, {
-      'skippedSlots': skippedStrings,
-    });
-
-    final updatedDoc = await _db.docGet('orders', orderId);
-    return OrderModel.fromMap(updatedDoc!);
   }
 
   // Admin access routines

@@ -172,6 +172,45 @@ class AuthRepository {
     return updatedProfile;
   }
 
+  Future<UserProfile?> syncAddressAndPhone({
+    required String houseNo,
+    required String area,
+    required String landmark,
+    required String phone,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('user_profile');
+    if (cached == null) return null;
+
+    final current = UserProfile.fromMap(jsonDecode(cached));
+    final updatedHouseNo = houseNo.isNotEmpty ? houseNo : current.houseNo;
+    final updatedArea = area.isNotEmpty ? area : current.area;
+    final updatedLandmark = landmark.isNotEmpty ? landmark : current.landmark;
+    final updatedPhone = phone.isNotEmpty ? phone : current.phone;
+
+    final updatedMap = {
+      'houseNo': updatedHouseNo,
+      'area': updatedArea,
+      'landmark': updatedLandmark,
+      'phone': updatedPhone,
+    };
+
+    await _db.docUpdate('users', current.id, updatedMap);
+
+    final updatedProfile = UserProfile(
+      id: current.id,
+      phone: updatedPhone,
+      name: current.name,
+      houseNo: updatedHouseNo,
+      area: updatedArea,
+      landmark: updatedLandmark,
+      isAdmin: current.isAdmin,
+    );
+
+    await prefs.setString('user_profile', jsonEncode(updatedProfile.toMap()));
+    return updatedProfile;
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');

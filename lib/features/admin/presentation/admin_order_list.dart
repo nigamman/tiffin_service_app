@@ -344,7 +344,33 @@ class _AdminOrderListState extends State<AdminOrderList> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text("Start date: $startDateFormatted • Slot: ${order.deliverySlot.toUpperCase()}", style: const TextStyle(fontSize: 13)),
-                                      Text("Skips: ${order.skippedDates.length} meals skipped", style: const TextStyle(fontSize: 13, color: AppTheme.textMuted)),
+                                      if (order.deliveryInstructions.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.shade50,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.amber.shade300, width: 1),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.note_alt_outlined, size: 14, color: Colors.amber.shade900),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  "Rider Note: ${order.deliveryInstructions}",
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 11.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.amber.shade900,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                       if (order.frequency != 'one-time') ...[
                                         const SizedBox(height: 4),
                                         Text(

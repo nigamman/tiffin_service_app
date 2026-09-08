@@ -12,6 +12,7 @@ class BookingState extends Equatable {
   final String area;
   final String landmark;
   final String contactPhone;
+  final String deliveryInstructions;
   final String couponCode;
   final CouponResult? appliedCoupon;
   final bool isLoading;
@@ -29,6 +30,7 @@ class BookingState extends Equatable {
     this.area = '',
     this.landmark = '',
     this.contactPhone = '',
+    this.deliveryInstructions = '',
     this.couponCode = '',
     this.appliedCoupon,
     this.isLoading = false,
@@ -47,6 +49,7 @@ class BookingState extends Equatable {
     String? area,
     String? landmark,
     String? contactPhone,
+    String? deliveryInstructions,
     String? couponCode,
     CouponResult? Function()? appliedCoupon,
     bool? isLoading,
@@ -64,6 +67,7 @@ class BookingState extends Equatable {
       area: area ?? this.area,
       landmark: landmark ?? this.landmark,
       contactPhone: contactPhone ?? this.contactPhone,
+      deliveryInstructions: deliveryInstructions ?? this.deliveryInstructions,
       couponCode: couponCode ?? this.couponCode,
       appliedCoupon: appliedCoupon != null ? appliedCoupon() : this.appliedCoupon,
       isLoading: isLoading ?? this.isLoading,
@@ -84,6 +88,7 @@ class BookingState extends Equatable {
         area,
         landmark,
         contactPhone,
+        deliveryInstructions,
         couponCode,
         appliedCoupon,
         isLoading,
@@ -132,12 +137,21 @@ class BookingCubit extends Cubit<BookingState> {
     required String area,
     required String landmark,
     required String phone,
+    String? deliveryInstructions,
   }) {
     emit(state.copyWith(
       houseNo: houseNo,
       area: area,
       landmark: landmark,
       contactPhone: phone,
+      deliveryInstructions: deliveryInstructions ?? state.deliveryInstructions,
+      error: () => null,
+    ));
+  }
+
+  void setDeliveryInstructions(String instructions) {
+    emit(state.copyWith(
+      deliveryInstructions: instructions,
       error: () => null,
     ));
   }
@@ -189,6 +203,7 @@ class BookingCubit extends Cubit<BookingState> {
         area: state.area,
         landmark: state.landmark,
         contactPhone: state.contactPhone,
+        deliveryInstructions: state.deliveryInstructions,
         couponCode: state.appliedCoupon?.code,
       );
       

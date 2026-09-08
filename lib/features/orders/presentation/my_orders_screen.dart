@@ -7,6 +7,9 @@ import '../data/orders_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/notification_overlay.dart';
 import 'order_details_screen.dart';
+import 'subscription_details_screen.dart';
+import '../../../core/services/invoice_service.dart';
+import '../../auth/presentation/auth_cubit.dart';
 
 
 class MyOrdersScreen extends StatefulWidget {
@@ -117,53 +120,35 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           final todayNormalized = DateTime(now.year, now.month, now.day);
           final tomorrowNormalized = todayNormalized.add(const Duration(days: 1));
 
-          // Helper to check if a date's slots are fully skipped
-          bool isDateFullySkipped(OrderModel order, DateTime date) {
-            final dateStr = DateFormat('yyyy-MM-dd').format(date);
-            final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(date));
-            if (isDaySkipped) return true;
-
-            final List<String> activeSlots = [];
-            if (order.deliverySlot == 'lunch' || order.deliverySlot == 'both') {
-              activeSlots.add('lunch');
-            }
-            if (order.deliverySlot == 'dinner' || order.deliverySlot == 'both') {
-              activeSlots.add('dinner');
-            }
-            
-            if (activeSlots.isEmpty) return false;
-            return activeSlots.every((slot) => order.skippedSlots.contains("${dateStr}_$slot"));
-          }
-
           final bool isTodayScheduled = order.isScheduledToday;
-          final bool isTodaySkipped = isTodayScheduled && isDateFullySkipped(order, todayNormalized);
 
           final bool isTomorrowScheduled = order.orderStatus != 'cancelled' &&
               !DateTime(order.startDate.year, order.startDate.month, order.startDate.day).isAfter(tomorrowNormalized) &&
               (order.frequency == 'one-time'
                   ? DateTime(order.startDate.year, order.startDate.month, order.startDate.day).isAtSameMomentAs(tomorrowNormalized)
                   : OrderModel.isDeliveryDay(tomorrowNormalized, order.frequency));
-          final bool isTomorrowSkipped = isTomorrowScheduled && isDateFullySkipped(order, tomorrowNormalized);
 
           return GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => OrderDetailsScreen(order: order),
+                  builder: (context) => order.frequency != 'one-time'
+                      ? SubscriptionDetailsScreen(order: order)
+                      : OrderDetailsScreen(order: order),
                 ),
               );
             },
             child: Container(
               margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.015),
-                    blurRadius: 10,
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ],
@@ -171,78 +156,94 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Card Header Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: order.frequency == 'one-time'
-                              ? AppTheme.secondaryMarigold.withOpacity(0.08)
-                              : AppTheme.primaryGreen.withOpacity(0.06),
+                          color: AppTheme.primaryGreen.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          order.frequency == 'one-time'
-                              ? "ONE-TIME MEAL"
-                              : "${order.frequency.toUpperCase()} SUBSCRIPTION",
-                          style: TextStyle(
-                            color: order.frequency == 'one-time'
-                                ? AppTheme.secondaryMarigold
-                                : AppTheme.primaryGreen,
+                          "${order.frequency.toUpperCase()} PLAN",
+                          style: GoogleFonts.poppins(
+                            color: AppTheme.primaryGreen,
                             fontWeight: FontWeight.bold,
                             fontSize: 10,
-                            letterSpacing: 1.0,
+                            letterSpacing: 0.8,
                           ),
                         ),
                       ),
-                      const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: AppTheme.successColor, size: 14),
-                          SizedBox(width: 6),
-                          Text(
-                            "Active",
-                            style: TextStyle(
-                              color: AppTheme.successColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        "Order #${order.id.substring(0, order.id.length > 8 ? 8 : order.id.length)}",
+                        style: GoogleFonts.poppins(
+                          color: AppTheme.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Meal Title
+                  const SizedBox(height: 12),
                   Text(
-                    "Home Tiffin Meal  •  ${order.quantity} Box",
-                    style: const TextStyle(
+                    "Home Tiffin Meal  •  ${order.quantity} Box (${order.deliverySlot.toUpperCase()})",
+                    style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 15,
                       color: AppTheme.textDark,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "Delivery Slot: ${order.deliverySlot.toUpperCase()}",
-                    style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                    "Started: ${DateFormat('dd MMM yyyy').format(order.startDate)}",
+                    style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted),
                   ),
-                  const Divider(height: 24, color: AppTheme.borderLight),
+                  if (order.frequency != 'one-time') ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Delivered: ${order.deliveredMeals} Got  •  Remaining: ${order.remainingMeals} Left",
+                          style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          "${(order.progressPercent * 100).toStringAsFixed(0)}%",
+                          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: order.progressPercent,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
                   
-                  // Scheduled Status
+                  // Today/Tomorrow Delivery Status Row
                   if (isTodayScheduled) ...[
                     Row(
                       children: [
                         Icon(
-                          isTodaySkipped 
-                              ? Icons.block_outlined 
-                              : (order.todayActiveStage == 3 ? Icons.check_circle : Icons.pedal_bike),
+                          order.todayActiveStage == 3 ? Icons.check_circle : Icons.pedal_bike,
                           size: 18,
-                          color: isTodaySkipped 
-                              ? AppTheme.errorColor 
-                              : (order.todayActiveStage == 3 ? AppTheme.successColor : AppTheme.secondaryMarigold),
+                          color: order.todayActiveStage == 3 ? AppTheme.successColor : AppTheme.secondaryMarigold,
                         ),
                         const SizedBox(width: 10),
                         const Text(
@@ -250,42 +251,40 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark),
                         ),
                         Text(
-                          isTodaySkipped ? "SKIPPED" : order.todayStatusLabel,
+                          order.todayStatusLabel,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: isTodaySkipped
-                                ? AppTheme.errorColor
-                                : (order.todayActiveStage == 3
-                                    ? AppTheme.successColor
-                                    : (order.todayActiveStage == 2
-                                        ? AppTheme.secondaryMarigold
-                                        : (order.todayActiveStage == 1
-                                            ? Colors.orange
-                                            : AppTheme.textDark))),
+                            color: order.todayActiveStage == 3
+                                ? AppTheme.successColor
+                                : (order.todayActiveStage == 2
+                                    ? AppTheme.secondaryMarigold
+                                    : (order.todayActiveStage == 1
+                                        ? Colors.orange
+                                        : AppTheme.textDark)),
                           ),
                         ),
                       ],
                     ),
                   ] else if (isTomorrowScheduled) ...[
-                    Row(
+                    const Row(
                       children: [
                         Icon(
-                          isTomorrowSkipped ? Icons.block_outlined : Icons.calendar_today_outlined,
+                          Icons.calendar_today_outlined,
                           size: 18,
-                          color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.primaryGreen,
+                          color: AppTheme.primaryGreen,
                         ),
-                        const SizedBox(width: 10),
-                        const Text(
+                        SizedBox(width: 10),
+                        Text(
                           "Tomorrow's Delivery: ",
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark),
                         ),
                         Text(
-                          isTomorrowSkipped ? "SKIPPED" : "SCHEDULED",
+                          "SCHEDULED",
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: isTomorrowSkipped ? AppTheme.errorColor : AppTheme.successColor,
+                            color: AppTheme.successColor,
                           ),
                         ),
                       ],
@@ -303,6 +302,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                           "Scheduled for: ${DateFormat('dd MMM').format(order.startDate)}",
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
                         ),
+                      ],
+                    ),
+                  ],
+                  if (order.frequency != 'one-time') ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Tap to view delivery log & schedule",
+                          style: GoogleFonts.poppins(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.primaryGreen),
                       ],
                     ),
                   ],
@@ -416,6 +432,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.picture_as_pdf_outlined, color: AppTheme.primaryGreen, size: 22),
+                  tooltip: "Download PDF Invoice",
+                  onPressed: () {
+                    final authState = context.read<AuthCubit>().state;
+                    final user = authState is AuthAuthenticated ? authState.user : null;
+                    InvoiceService.downloadOrPrintInvoice(context, order, user: user);
+                  },
                 ),
               ],
             ),

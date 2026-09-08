@@ -6,9 +6,6 @@ import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../orders/presentation/orders_cubit.dart';
-import '../../orders/data/orders_repository.dart';
-import '../../orders/presentation/subscription_details_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/notification_overlay.dart';
@@ -26,13 +23,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Local cache to preserve UI during Bloc Loading state transitions
   UserProfile? _user;
-  int _activeTab = 0; // 0 = Subscriptions, 1 = Help & Info
   bool _phonePromptShown = false;
 
   @override
   void initState() {
     super.initState();
-    context.read<OrdersCubit>().loadOrders();
     // Check after first frame if phone is missing (Google login)
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPhoneMissing());
   }
@@ -616,294 +611,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // --- Custom Segmented Tab Toggle ---
+                    // Help & Support Center List
                     Container(
-                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEEF1F4),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _activeTab = 0;
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: _activeTab == 0 ? primaryGreen : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(11),
-                                  boxShadow: _activeTab == 0
-                                      ? [
-                                          BoxShadow(
-                                            color: primaryGreen.withOpacity(0.2),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : [],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "Subscriptions",
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: _activeTab == 0 ? Colors.white : AppTheme.textMuted,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
                           ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _activeTab = 1;
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: _activeTab == 1 ? primaryGreen : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(11),
-                                  boxShadow: _activeTab == 1
-                                      ? [
-                                          BoxShadow(
-                                            color: primaryGreen.withOpacity(0.2),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : [],
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          _buildTabItem(
+                            icon: Icons.headset_mic_outlined,
+                            title: "Customer Support & Contact Us",
+                            subtitle: "Phone (+91 9119724875), Email & Office Address",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.contactUs),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    "Help & Info",
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: _activeTab == 1 ? Colors.white : AppTheme.textMuted,
-                                    ),
-                                  ),
+                              );
+                            },
+                          ),
+                          Divider(height: 1, color: Colors.grey.shade100),
+                          _buildTabItem(
+                            icon: Icons.info_outline_rounded,
+                            title: "About Atithi Bhoj",
+                            subtitle: "Our business details & mission in Kanpur",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.aboutUs),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
+                          ),
+                          Divider(height: 1, color: Colors.grey.shade100),
+                          _buildTabItem(
+                            icon: Icons.sell_outlined,
+                            title: "Pricing & Subscription Plans",
+                            subtitle: "Transparent plan rates and meal pricing",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.pricing),
+                                ),
+                              );
+                            },
+                          ),
+                          Divider(height: 1, color: Colors.grey.shade100),
+                          _buildTabItem(
+                            icon: Icons.replay_circle_filled_outlined,
+                            title: "Cancellation & Refund Policy",
+                            subtitle: "Subscription refunds and cancellation rules",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.cancellationRefund),
+                                ),
+                              );
+                            },
+                          ),
+                          Divider(height: 1, color: Colors.grey.shade100),
+                          _buildTabItem(
+                            icon: Icons.local_shipping_outlined,
+                            title: "Shipping & Delivery Policy",
+                            subtitle: "5km delivery zone, timings, and rules",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.shippingDelivery),
+                                ),
+                              );
+                            },
+                          ),
+                          Divider(height: 1, color: Colors.grey.shade100),
+                          _buildTabItem(
+                            icon: Icons.gavel_outlined,
+                            title: "Terms, Conditions & Privacy",
+                            subtitle: "Terms of service and data privacy commitment",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.terms),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    
-                    // Tab View Contents
-                    _activeTab == 0
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Active Subscriptions",
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: AppTheme.textDark,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              BlocBuilder<OrdersCubit, OrdersState>(
-                                builder: (context, ordersState) {
-                                  if (ordersState is OrdersLoading) {
-                                    return const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 30),
-                                        child: CircularProgressIndicator(color: primaryGreen),
-                                      ),
-                                    );
-                                  }
-                                  if (ordersState is OrdersLoaded) {
-                                    final activeSubs = ordersState.activeOrders
-                                        .where((o) => o.frequency != 'one-time')
-                                        .toList();
-
-                                    if (activeSubs.isEmpty) {
-                                      return Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(20),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(18),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(0.03),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(10),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade100,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.calendar_today_outlined,
-                                                color: AppTheme.textMuted,
-                                                size: 20,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    "No Active Subscription",
-                                                    style: GoogleFonts.poppins(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 13.5,
-                                                      color: AppTheme.textDark,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    "Subscribe to a meal plan to manage it anytime here.",
-                                                    style: GoogleFonts.poppins(
-                                                      color: AppTheme.textMuted,
-                                                      fontSize: 11.5,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-
-                                    return ListView.builder(
-                                      shrinkWrap: true,
-                                      physics: const NeverScrollableScrollPhysics(),
-                                      itemCount: activeSubs.length,
-                                      itemBuilder: (context, index) {
-                                        final order = activeSubs[index];
-                                        return _buildSubscriptionManagementCard(context, order);
-                                      },
-                                    );
-                                  }
-                                  return const SizedBox();
-                                },
-                              ),
-                            ],
-                          )
-                        : Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                _buildTabItem(
-                                  icon: Icons.headset_mic_outlined,
-                                  title: "Customer Support & Contact Us",
-                                  subtitle: "Phone (+91 9119724875), Email & Office Address",
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.contactUs),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Divider(height: 1, color: Colors.grey.shade100),
-                                _buildTabItem(
-                                  icon: Icons.info_outline_rounded,
-                                  title: "About Atithi Bhoj",
-                                  subtitle: "Our business details & mission in Kanpur",
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.aboutUs),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Divider(height: 1, color: Colors.grey.shade100),
-                                _buildTabItem(
-                                  icon: Icons.sell_outlined,
-                                  title: "Pricing & Subscription Plans",
-                                  subtitle: "Transparent plan rates and meal pricing",
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.pricing),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Divider(height: 1, color: Colors.grey.shade100),
-                                _buildTabItem(
-                                  icon: Icons.replay_circle_filled_outlined,
-                                  title: "Cancellation & Refund Policy",
-                                  subtitle: "Subscription refunds and cancellation rules",
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.cancellationRefund),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Divider(height: 1, color: Colors.grey.shade100),
-                                _buildTabItem(
-                                  icon: Icons.local_shipping_outlined,
-                                  title: "Shipping & Delivery Policy",
-                                  subtitle: "5km delivery zone, timings, and rules",
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.shippingDelivery),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Divider(height: 1, color: Colors.grey.shade100),
-                                _buildTabItem(
-                                  icon: Icons.gavel_outlined,
-                                  title: "Terms, Conditions & Privacy",
-                                  subtitle: "Terms of service and data privacy commitment",
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PolicyCenterScreen(initialSection: PolicySection.terms),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
                     const SizedBox(height: 32),
                     
                     // Log Out Button
@@ -980,321 +788,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildSubscriptionManagementCard(BuildContext context, OrderModel order) {
-    final now = DateTime.now();
-    final todayNormalized = DateTime(now.year, now.month, now.day);
-    final startNormalized = DateTime(order.startDate.year, order.startDate.month, order.startDate.day);
-
-    final totalMeals = order.totalMeals;
-    final remainingMeals = order.remainingMeals;
-    final double progressPercent = order.progressPercent;
-
-    // Determine cutoff time (2 hours before delivery slot)
-    int cutoffHour = 9; // 9:30 AM
-    int cutoffMinute = 30;
-    String cutoffText = "9:30 AM";
-    if (order.deliverySlot == 'dinner') {
-      cutoffHour = 17; // 5:00 PM
-      cutoffMinute = 0;
-      cutoffText = "5:00 PM";
-    } else if (order.deliverySlot == 'both') {
-      cutoffHour = 9; // 9:30 AM for lunch
-      cutoffMinute = 30;
-      cutoffText = "9:30 AM";
-    }
-
-    final todayCutoff = DateTime(now.year, now.month, now.day, cutoffHour, cutoffMinute);
-
-    DateTime targetSkipDate;
-    if (startNormalized.isAfter(todayNormalized)) {
-      targetSkipDate = startNormalized;
-    } else if (now.isBefore(todayCutoff)) {
-      targetSkipDate = todayNormalized;
-    } else {
-      targetSkipDate = todayNormalized.add(const Duration(days: 1));
-    }
-
-    final isTargetSkipped = order.skippedDates.any(
-      (d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(targetSkipDate),
-    );
-
-    final isTargetToday = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
-        .isAtSameMomentAs(todayNormalized);
-    final isTargetTomorrow = DateTime(targetSkipDate.year, targetSkipDate.month, targetSkipDate.day)
-        .isAtSameMomentAs(todayNormalized.add(const Duration(days: 1)));
-
-    final String dayLabel = isTargetToday 
-        ? "Today" 
-        : (isTargetTomorrow ? "Tomorrow" : DateFormat('EEEE, dd MMM').format(targetSkipDate));
-
-    final String slotTimingText;
-    if (order.deliverySlot == 'lunch') {
-      slotTimingText = "11:30 AM - 1:30 PM";
-    } else if (order.deliverySlot == 'dinner') {
-      slotTimingText = "7:00 PM - 9:00 PM";
-    } else {
-      slotTimingText = "Lunch: 11:30 AM - 1:30 PM & Dinner: 7:00 PM - 9:00 PM";
-    }
-
-    // Count skipped slots in these 7 days
-    int skipCount = 0;
-    final List<DateTime> next7Days = List.generate(7, (i) => todayNormalized.add(Duration(days: i)));
-    for (final day in next7Days) {
-      final isDaySkipped = order.skippedDates.any((d) => DateTime(d.year, d.month, d.day).isAtSameMomentAs(day));
-      if (isDaySkipped) {
-        skipCount++;
-        continue;
-      }
-      for (final slot in ['lunch', 'dinner']) {
-        final slotKey = "${DateFormat('yyyy-MM-dd').format(day)}_$slot";
-        if (order.skippedSlots.contains(slotKey)) {
-          skipCount++;
-        }
-      }
-    }
-    final bool hasReachedSkipLimit = skipCount >= 1;
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SubscriptionDetailsScreen(order: order),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(18.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: primaryGreen.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    "${order.frequency.toUpperCase()} SUBSCRIPTION",
-                    style: GoogleFonts.poppins(
-                      color: primaryGreen,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.circle, color: Colors.green.shade700, size: 7),
-                      const SizedBox(width: 4),
-                      Text(
-                        "Active",
-                        style: GoogleFonts.poppins(
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              "Home Tiffin Meal  •  ${order.quantity} Box (${order.deliverySlot.toUpperCase()})",
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: AppTheme.textDark,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Subscription Progress",
-                  style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted),
-                ),
-                Text(
-                  "$remainingMeals of $totalMeals meals left",
-                  style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: primaryGreen),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              height: 7,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: progressPercent,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: primaryGreen,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Divider(height: 1, color: Colors.grey.shade200),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isTargetSkipped 
-                        ? AppTheme.errorColor.withOpacity(0.08)
-                        : primaryGreen.withOpacity(0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isTargetSkipped ? Icons.block_outlined : Icons.delivery_dining_outlined,
-                    size: 18,
-                    color: isTargetSkipped ? AppTheme.errorColor : primaryGreen,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isTargetSkipped
-                            ? "$dayLabel's Delivery Skipped"
-                            : "Scheduled $dayLabel",
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13.5,
-                          color: isTargetSkipped ? AppTheme.errorColor : primaryGreen,
-                        ),
-                      ),
-                      Text(
-                        isTargetSkipped
-                            ? "You will not receive tiffin box for $dayLabel's ${order.deliverySlot} slot."
-                            : "Delivered $dayLabel during ${order.deliverySlot.toUpperCase()} slot ($slotTimingText).",
-                        style: GoogleFonts.poppins(
-                          fontSize: 11.5,
-                          color: AppTheme.textMuted,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
-                    ? AppTheme.textMuted 
-                    : primaryGreen,
-                side: BorderSide(
-                  color: (isTargetSkipped || (!isTargetSkipped && hasReachedSkipLimit)) 
-                      ? Colors.grey.shade300 
-                      : primaryGreen,
-                  width: 1.2,
-                ),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                minimumSize: const Size(double.infinity, 44),
-                textStyle: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.bold),
-              ),
-              icon: Icon(
-                isTargetSkipped 
-                    ? Icons.check_circle_outline 
-                    : (hasReachedSkipLimit ? Icons.lock_outline : Icons.skip_next_outlined),
-                size: 16,
-              ),
-              label: Text(
-                isTargetSkipped 
-                    ? "Delivery Skipped" 
-                    : (hasReachedSkipLimit ? "Weekly Skip Limit Reached" : "Skip $dayLabel's Delivery"),
-              ),
-              onPressed: (isTargetSkipped || hasReachedSkipLimit)
-                  ? null
-                  : () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext dialogContext) {
-                          return AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            title: Text(
-                              "Confirm Skip",
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                            ),
-                            content: Text(
-                              "Are you sure you want to skip $dayLabel's delivery? Note: This action cannot be undone and you cannot unskip this delivery later.",
-                              style: GoogleFonts.poppins(fontSize: 12.5, color: AppTheme.textDark),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(dialogContext),
-                                child: Text("Cancel", style: GoogleFonts.poppins(color: AppTheme.textMuted)),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(dialogContext);
-                                  context.read<OrdersCubit>().skipDeliveryDate(order.id, targetSkipDate);
-                                  NotificationOverlay.show(
-                                    context,
-                                    title: "Delivery Skipped",
-                                    message: "Your delivery has been skipped for $dayLabel.",
-                                    icon: Icons.skip_next,
-                                  );
-                                },
-                                child: Text("Skip", style: GoogleFonts.poppins(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: Text(
-                "Note: Skip requests accepted up to 2 hours before delivery ($cutoffText cutoff)",
-                style: GoogleFonts.poppins(fontSize: 10, color: AppTheme.textMuted),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
