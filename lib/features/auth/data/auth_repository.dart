@@ -216,14 +216,20 @@ class AuthRepository {
     await prefs.remove('auth_token');
     await prefs.remove('user_profile');
     try {
-      await GoogleSignIn().signOut();
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: '57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com',
+      );
+      await googleSignIn.signOut();
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
   }
 
   Future<UserProfile> signInWithGoogle() async {
-    // 1. Trigger the Google Authentication flow
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    // 1. Trigger the Google Authentication flow with explicit Web Client ID for idToken
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      serverClientId: '57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com',
+    );
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
     if (googleUser == null) {
       throw Exception('Google Sign-In was cancelled');
     }

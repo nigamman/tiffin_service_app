@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../data/admin_repository.dart';
 import 'admin_menu_management.dart';
 import 'admin_coupon_management.dart';
@@ -6,6 +7,7 @@ import 'admin_order_list.dart';
 import 'admin_subscription_list_screen.dart';
 import 'admin_notification_screen.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/firebase_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -177,6 +179,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         icon: Icons.campaign_outlined,
                         destination: const AdminNotificationScreen(),
                       ),
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.borderLight),
+                        ),
+                        child: ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreen.withOpacity(0.06),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.arrow_forward_ios, size: 0),
+                          ),
+                          title: const Row(
+                            children: [
+                              Icon(Icons.system_update_rounded, size: 20, color: AppTheme.primaryGreen),
+                              SizedBox(width: 10),
+                              Text("App Version & Release Control", style: TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          subtitle: const Text("Set required app version & push update alerts", style: TextStyle(fontSize: 12)),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.textMuted),
+                          onTap: () => _showVersionControlDialog(context),
+                        ),
+                      ),
                       const SizedBox(height: 32),
 
                       // Coupon performance overview
@@ -307,6 +337,159 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ).then((_) => _loadAnalytics()); // Reload analytics when returning
         },
       ),
+    );
+  }
+
+  void _showVersionControlDialog(BuildContext context) async {
+    final versionCodeController = TextEditingController(text: "3");
+    final titleController = TextEditingController(text: "New Update Available 🚀");
+    final messageController = TextEditingController(
+      text: "A new version of Atithi Bhoj is available on Google Play Store with performance improvements and bug fixes.",
+    );
+    bool forceUpdate = false;
+    bool isSaving = false;
+
+    // Load current config from Firestore if available
+    try {
+      final config = await FirebaseService.instance.docGet('app_config', 'version_info');
+      if (config != null) {
+        final currentCode = (config['latestVersionCode'] as num?)?.toInt() ?? 3;
+        versionCodeController.text = currentCode.toString();
+        if (config['updateTitle'] != null) titleController.text = config['updateTitle'].toString();
+        if (config['updateMessage'] != null) messageController.text = config['updateMessage'].toString();
+        forceUpdate = config['forceUpdate'] == true;
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  const Icon(Icons.system_update_rounded, color: AppTheme.primaryGreen),
+                  const SizedBox(width: 10),
+                  Text(
+                    "App Version Control",
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textDark),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Set the version code for your latest Play Store release. App users on older versions will be prompted to update.",
+                      style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: versionCodeController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Latest Version Code (e.g. 3)",
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: titleController,
+                      decoration: InputDecoration(
+                        labelText: "Update Alert Title",
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: messageController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: "Update Message",
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        "Force Mandatory Update",
+                        style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        "If enabled, users must update to continue using the app.",
+                        style: GoogleFonts.poppins(fontSize: 11, color: AppTheme.textMuted),
+                      ),
+                      value: forceUpdate,
+                      activeColor: AppTheme.primaryGreen,
+                      onChanged: (val) {
+                        setDialogState(() => forceUpdate = val);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Cancel", style: GoogleFonts.poppins(color: AppTheme.textMuted)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          setDialogState(() => isSaving = true);
+                          final int? code = int.tryParse(versionCodeController.text.trim());
+                          if (code == null) {
+                            setDialogState(() => isSaving = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please enter a valid version code number")),
+                            );
+                            return;
+                          }
+
+                          await FirebaseService.instance.docSet('app_config', 'version_info', {
+                            'latestVersionCode': code,
+                            'minRequiredVersionCode': forceUpdate ? code : 1,
+                            'updateTitle': titleController.text.trim(),
+                            'updateMessage': messageController.text.trim(),
+                            'forceUpdate': forceUpdate,
+                            'updatedAt': DateTime.now().toIso8601String(),
+                          });
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("App update release alert config published to Firestore! 🚀"),
+                                backgroundColor: AppTheme.primaryGreen,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text("Publish Release Alert", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

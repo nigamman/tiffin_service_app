@@ -8,6 +8,7 @@ import '../../orders/presentation/my_orders_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/update_service.dart';
 
 class MainLayout extends StatefulWidget {
   final int initialIndex;
@@ -27,6 +28,11 @@ class _MainLayoutState extends State<MainLayout> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    
+    // Check for app updates on launch after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdates(context);
+    });
     
     // Initialize notification service
     _notificationService = NotificationService(context);

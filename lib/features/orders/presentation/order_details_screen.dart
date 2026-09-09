@@ -336,7 +336,7 @@ class _OrderDetailsViewState extends State<_OrderDetailsView> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.green.shade700,
                               side: BorderSide(color: Colors.green.shade600, width: 1.2),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               backgroundColor: Colors.green.shade50.withOpacity(0.4),
                             ),

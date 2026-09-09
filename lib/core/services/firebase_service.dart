@@ -93,7 +93,13 @@ class FirebaseService {
 
   Future<List<Map<String, dynamic>>> collectionGet(String collectionName) async {
     final querySnap = await _firestore.collection(collectionName).get();
-    return querySnap.docs.map((doc) => doc.data()).toList();
+    return querySnap.docs.map((doc) {
+      final data = doc.data();
+      if (!data.containsKey('id') || data['id'] == null) {
+        data['id'] = doc.id;
+      }
+      return data;
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> collectionGetWhere(

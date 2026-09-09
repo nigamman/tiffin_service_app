@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../home/data/menu_repository.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../auth/presentation/login_screen.dart';
@@ -37,6 +39,355 @@ class _TiffinDetailsScreenState extends State<TiffinDetailsScreen> {
         _quantity--;
       });
     }
+  }
+
+  Future<void> _openPlayStore() async {
+    const packageName = 'com.nigamman.atithibhoj';
+    final marketUri = Uri.parse('market://details?id=$packageName');
+    final webUri = Uri.parse('https://play.google.com/store/apps/details?id=$packageName');
+
+    try {
+      if (await canLaunchUrl(marketUri)) {
+        await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(webUri);
+      }
+    } catch (e) {
+      debugPrint("Could not launch Play Store: $e");
+    }
+  }
+
+  void _showRatingDialog(BuildContext context) {
+    final titleSlot = widget.initialSlot == 'lunch' ? 'Lunch' : 'Dinner';
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: const Color(0xFFF9F7F2),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Heart badge
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.favorite,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Thanks for Liking the Menu! ❤️",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF0B4828),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "We're thrilled that you love today's $titleSlot thali! Please take a moment to rate us on Google Play Store.",
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // Rate Us on Play Store Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _openPlayStore();
+                  },
+                  icon: const Icon(Icons.star, color: Color(0xFFD3B16A), size: 20),
+                  label: Text(
+                    "Rate Us on Play Store",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B4828),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  "Maybe Later",
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showShareSheet(BuildContext context) {
+    final titleLabel = widget.initialSlot == 'lunch' ? 'Lunch' : 'Dinner';
+    final itemsList = widget.menu.items.map((i) => '• $i').join('\n');
+    const appUrl = 'https://play.google.com/store/apps/details?id=com.nigamman.atithibhoj';
+
+    final shareText = "🍱 *Atithi Bhoj - Today's $titleLabel Menu* 🍱\n\n"
+        "Today's Special Thali Items:\n"
+        "$itemsList\n\n"
+        "💰 Price: ₹${widget.menu.price.toStringAsFixed(0)} per thali\n"
+        "✨ *Ghar jaisa swaad, har roz aapke saath!*\n\n"
+        "👇 Order warm home-cooked meals on Atithi Bhoj App:\n"
+        "$appUrl";
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF9F7F2),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0B4828).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.share,
+                      color: Color(0xFF0B4828),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Share Today's Menu",
+                        style: GoogleFonts.poppins(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF222222),
+                        ),
+                      ),
+                      Text(
+                        "Send to friends & family with direct app link",
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Menu Card Preview
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFC3A575).withOpacity(0.4)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.restaurant_menu, color: Color(0xFF0B4828), size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Atithi Bhoj • $titleLabel Thali",
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: const Color(0xFF0B4828),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          "₹${widget.menu.price.toStringAsFixed(0)}",
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                            color: const Color(0xFFC3A575),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      itemsList,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade800,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0B4828).withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.link, size: 14, color: Color(0xFF0B4828)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              appUrl,
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: const Color(0xFF0B4828),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Action Buttons
+              // 1. WhatsApp Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final encoded = Uri.encodeComponent(shareText);
+                    final whatsappUri = Uri.parse("https://api.whatsapp.com/send?text=$encoded");
+                    try {
+                      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      Clipboard.setData(ClipboardData(text: shareText));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Menu & App Link copied to Clipboard!")),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
+                  label: Text(
+                    "Share via WhatsApp",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366), // Official WhatsApp Green
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // 2. Copy Menu & Link Button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Clipboard.setData(ClipboardData(text: shareText));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Menu & Play Store app link copied to clipboard! 📋"),
+                        backgroundColor: Color(0xFF0B4828),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy, color: Color(0xFF0B4828), size: 18),
+                  label: Text(
+                    "Copy Menu & App Link",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: const Color(0xFF0B4828),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF0B4828), width: 1.2),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -141,6 +492,16 @@ class _TiffinDetailsScreenState extends State<TiffinDetailsScreen> {
               setState(() {
                 _isFavorite = !_isFavorite;
               });
+              if (_isFavorite) {
+                _showRatingDialog(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Removed from favorites."),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(10),
@@ -165,11 +526,7 @@ class _TiffinDetailsScreenState extends State<TiffinDetailsScreen> {
           const SizedBox(width: 12),
           // Share Button
           GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Link copied! Share Atithi Bhoj with your friends.")),
-              );
-            },
+            onTap: () => _showShareSheet(context),
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(

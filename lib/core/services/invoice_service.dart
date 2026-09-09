@@ -312,42 +312,35 @@ class InvoiceService {
                 destination: 'https://play.google.com/store/apps/details?id=com.nigamman.atithibhoj',
                 child: pw.Container(
                   width: double.infinity,
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: pw.BoxDecoration(
                     color: PdfColor.fromHex('#F1F5F2'),
                     borderRadius: pw.BorderRadius.circular(6),
                     border: pw.Border.all(color: PdfColor.fromHex('#0F3A20'), width: 0.5),
                   ),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
+                      // Line 1: Full text centered
+                      pw.Text(
+                        'Download on Google Play Atithi Bhoj Home Tiffin Service',
+                        style: pw.TextStyle(
+                          fontSize: 9,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromHex('#0F3A20'),
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                      pw.SizedBox(height: 6),
+                      // Line 2: Badge icon centered
                       pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.center,
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
                         children: [
-                          pw.Text(
-                            'Download the App Now on ',
-                            style: pw.TextStyle(
-                              fontSize: 9,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColor.fromHex('#0F3A20'),
-                            ),
-                          ),
-                          if (playStoreIcon1 != null) ...[
-                            pw.Image(playStoreIcon1, width: 14, height: 14),
-                            pw.SizedBox(width: 4),
-                          ],
-                          pw.Text(
-                            'Google Play Store - Atithi Bhoj',
-                            style: pw.TextStyle(
-                              fontSize: 9,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColor.fromHex('#0F3A20'),
-                            ),
-                          ),
+                          if (playStoreIcon2 != null)
+                            pw.Image(playStoreIcon2, height: 20, fit: pw.BoxFit.contain),
                         ],
                       ),
-                      if (playStoreIcon2 != null)
-                        pw.Image(playStoreIcon2, height: 18, fit: pw.BoxFit.contain),
                     ],
                   ),
                 ),

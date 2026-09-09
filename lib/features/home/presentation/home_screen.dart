@@ -217,7 +217,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           final title = (data['title'] ?? '').toString();
                           final isTargeted = target == 'all' || (userPhone != null && target == userPhone);
                           final isDismissed = _dismissedNotificationIds.contains(id) || _dismissedNotificationIds.contains(title);
-                          return isTargeted && !isDismissed;
+
+                          // Check notification age (expiry: 7 days)
+                          final createdAtRaw = data['createdAt'];
+                          bool isRecent = true;
+                          if (createdAtRaw != null) {
+                            final createdAt = DateTime.tryParse(createdAtRaw.toString());
+                            if (createdAt != null) {
+                              isRecent = DateTime.now().difference(createdAt).inDays <= 7;
+                            }
+                          }
+
+                          return isTargeted && !isDismissed && isRecent;
                         }).length;
                         showBadge = count > 0;
                       }
@@ -871,24 +882,46 @@ class _HomeScreenState extends State<HomeScreen> {
                 const curryGreen = Color(0xFF0F3A20);
                 const turmericGold = Color(0xFFC3A575);
 
-                return FutureBuilder<List<Map<String, dynamic>>>(
-                  future: FirebaseService.instance.collectionGet('notifications').then((list) {
-                    final filtered = list.where((n) {
-                      final target = n['target'] ?? 'all';
-                      return target == 'all' || (userPhone != null && target == userPhone);
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('notifications').snapshots(),
+                  builder: (context, snapshot) {
+                    final allDocs = snapshot.data?.docs ?? [];
+                    final allNotifications = allDocs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>? ?? {};
+                      if (!data.containsKey('id') || data['id'] == null) {
+                        data['id'] = doc.id;
+                      }
+                      return data;
                     }).toList();
+
+                    final filtered = allNotifications.where((n) {
+                      final target = n['target'] ?? 'all';
+                      final isTargeted = target == 'all' || (userPhone != null && target == userPhone);
+
+                      // Filter out notifications older than 7 days
+                      final createdAtRaw = n['createdAt'];
+                      bool isRecent = true;
+                      if (createdAtRaw != null) {
+                        final createdAt = DateTime.tryParse(createdAtRaw.toString());
+                        if (createdAt != null) {
+                          isRecent = DateTime.now().difference(createdAt).inDays <= 7;
+                        }
+                      }
+
+                      return isTargeted && isRecent;
+                    }).toList();
+
                     filtered.sort((a, b) {
                       final aTime = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime.now();
                       final bTime = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime.now();
                       return bTime.compareTo(aTime);
                     });
-                    return filtered;
-                  }),
-                  builder: (context, snapshot) {
-                    final allNotifications = snapshot.data ?? [];
-                    final visible = allNotifications
-                        .where((n) => !_dismissedNotificationIds.contains((n['id'] ?? n['title']).toString()))
-                        .toList();
+
+                    final visible = filtered.where((n) {
+                      final idStr = (n['id'] ?? n['title']).toString();
+                      final titleStr = (n['title'] ?? '').toString();
+                      return !_dismissedNotificationIds.contains(idStr) && !_dismissedNotificationIds.contains(titleStr);
+                    }).toList();
 
                     return Container(
                       decoration: const BoxDecoration(
@@ -962,9 +995,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                     if (visible.isNotEmpty)
                                       GestureDetector(
                                         onTap: () {
-                                          final idsToDismiss = visible
-                                              .map((n) => (n['id'] ?? n['title']).toString())
-                                              .toList();
+                                          final idsToDismiss = visible.map((n) {
+                                            final idStr = (n['id'] ?? n['title']).toString();
+                                            final titleStr = (n['title'] ?? '').toString();
+                                            return [idStr, if (titleStr.isNotEmpty) titleStr];
+                                          }).expand((e) => e).toList();
+
                                           setSheetState(() {
                                             animatingOutIds.addAll(idsToDismiss);
                                           });
@@ -999,7 +1035,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                               child: _buildNotificationsList(
-                                snapshot,
+                                visible,
+                                snapshot.connectionState == ConnectionState.waiting,
                                 scrollController,
                                 _dismissedNotificationIds,
                                 animatingOutIds,
@@ -1022,25 +1059,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNotificationsList(
-    AsyncSnapshot<List<Map<String, dynamic>>> snapshot,
+    List<Map<String, dynamic>> notifications,
+    bool isLoading,
     ScrollController scrollController,
     Set<String> dismissed,
     Set<String> animatingOutIds,
     StateSetter setSheetState,
     void Function(String id) onDismiss,
   ) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
+    if (isLoading && notifications.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
     }
-
-    if (snapshot.hasError) {
-      return Center(child: Text("Error: ${snapshot.error}"));
-    }
-
-    final allNotifications = snapshot.data ?? [];
-    final notifications = allNotifications
-        .where((n) => !dismissed.contains((n['id'] ?? n['title']).toString()))
-        .toList();
 
     if (notifications.isEmpty) {
       return Center(

@@ -168,6 +168,15 @@ class NotificationService {
             _existingCustomNotifications.add(notificationId);
             final data = doc.data() as Map<String, dynamic>?;
             if (data != null) {
+              // Ignore old notifications for popup banners (older than 24 hours)
+              final createdAtRaw = data['createdAt'];
+              if (createdAtRaw != null) {
+                final createdAt = DateTime.tryParse(createdAtRaw.toString());
+                if (createdAt != null && DateTime.now().difference(createdAt).inHours > 24) {
+                  continue;
+                }
+              }
+
               final target = data['target'] ?? 'all';
               final title = data['title'] ?? 'Announcement';
               final message = data['message'] ?? '';

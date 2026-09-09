@@ -203,11 +203,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          "Delivered: ${order.deliveredMeals} Got  •  Remaining: ${order.remainingMeals} Left",
-                          style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
+                        Flexible(
+                          child: Text(
+                            "Delivered: ${order.deliveredMeals} Got  •  Remaining: ${order.remainingMeals} Left",
+                            style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           "${(order.progressPercent * 100).toStringAsFixed(0)}%",
                           style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),

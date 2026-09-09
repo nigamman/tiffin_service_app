@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../../core/theme/app_theme.dart';
@@ -709,6 +710,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               );
                             },
                           ),
+                          Divider(height: 1, color: Colors.grey.shade100),
+                          _buildTabItem(
+                            icon: Icons.star_rate_rounded,
+                            title: "Rate Us on Play Store ⭐",
+                            subtitle: "Loved our food? Leave us a review on Google Play",
+                            onTap: _openPlayStore,
+                          ),
                         ],
                       ),
                     ),
@@ -790,6 +798,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _openPlayStore() async {
+    const packageName = 'com.nigamman.atithibhoj';
+    final marketUri = Uri.parse('market://details?id=$packageName');
+    final webUri = Uri.parse('https://play.google.com/store/apps/details?id=$packageName');
+
+    try {
+      if (await canLaunchUrl(marketUri)) {
+        await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(webUri);
+      }
+    } catch (e) {
+      debugPrint("Could not launch Play Store: $e");
+    }
   }
 
   Widget _buildTabItem({

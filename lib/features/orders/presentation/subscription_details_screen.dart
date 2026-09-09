@@ -398,15 +398,21 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
             // Progress Tracker
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  "Delivered: ${order.deliveredMeals} Got  •  Remaining: ${order.remainingMeals} Left",
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppTheme.textMuted,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    "Delivered: ${order.deliveredMeals} Got  •  Remaining: ${order.remainingMeals} Left",
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: AppTheme.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   "${(order.progressPercent * 100).toStringAsFixed(0)}% Consumed",
                   style: GoogleFonts.poppins(
@@ -751,7 +757,7 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.green.shade700,
                 side: BorderSide(color: Colors.green.shade600, width: 1.2),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 backgroundColor: Colors.green.shade50.withOpacity(0.4),
               ),

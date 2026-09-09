@@ -72,18 +72,35 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
   }
 
   void _openRazorpayCheckout(OrderCreateResult orderResult) {
+    // Read current booking state to embed customer details in payment notes
+    final state = context.read<BookingCubit>().state;
+
+    // Clean phone: strip non-digits, take last 10 digits (Razorpay requires 10-digit mobile)
+    final rawPhone = state.contactPhone.replaceAll(RegExp(r'\D'), '');
+    final phone = rawPhone.length >= 10 ? rawPhone.substring(rawPhone.length - 10) : rawPhone;
+
     final options = {
       'key': orderResult.keyId,
       'amount': (orderResult.amount * 100).toInt(), // Amount in paise
       'name': 'Atithi Bhoj',
-      'description': 'Tiffin Subscription',
-      'order_id': orderResult.razorpayOrderId,
+      'description': 'Tiffin — ${state.frequency.toUpperCase().replaceAll('_', ' ')}',
+      // order_id is intentionally omitted — must be a real Razorpay Orders API ID.
+      // Our Firestore order reference is embedded in 'notes' instead, which
+      // appears in the Razorpay Dashboard for admin cross-referencing.
+      'notes': {
+        'firestore_order_id': orderResult.orderId,
+        'plan': state.frequency,
+        'slot': state.deliverySlot,
+        'quantity': '${state.quantity}',
+        'customer_phone': phone,
+        'area': state.area,
+      },
       'prefill': {
-        'contact': '',
+        'contact': phone,
         'email': '',
       },
       'theme': {
-        'color': '#2E7D32', // App primary green
+        'color': '#2E7D32',
       },
       'modal': {
         'confirm_close': true,

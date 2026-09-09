@@ -58,11 +58,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "57069695734-ba3dsh5obebchgrusqg3t9pt1ajdpc7r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nigamman.atithibhoj",
+            "certificate_hash": "a94fce9feddf4f9ae99290546af6c82308ea0eec"
+          }
+        },
+        {
           "client_id": "57069695734-n2d1r9e0j2lpn50i2aeqsd07qgh06ch8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.nigamman.atithibhoj",
             "certificate_hash": "553c863873a05bb2acbe5147ff189abc4a94a60c"
+          }
+        },
+        {
+          "client_id": "57069695734-r98962nk33b7h3ks4n3qii3li3qk7odn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nigamman.atithibhoj",
+            "certificate_hash": "455529bae0b90297f095498a99433f55b6476ef8"
           }
         },
         {
