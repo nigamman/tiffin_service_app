@@ -3,13 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../auth/presentation/auth_cubit.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
-import '../../../core/widgets/notification_overlay.dart';
 import '../../policies/presentation/policy_center_screen.dart';
 
 class ProfileScreen extends StatefulWidget {

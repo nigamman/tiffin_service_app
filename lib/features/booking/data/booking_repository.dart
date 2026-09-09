@@ -92,6 +92,7 @@ class BookingRepository {
     required String area,
     required String landmark,
     required String contactPhone,
+    double? pricePerMeal,
     String? deliveryInstructions,
     String? couponCode,
   }) async {
@@ -100,12 +101,17 @@ class BookingRepository {
     final userId = user?.id ?? 'anonymous';
 
     // 1. Calculate pricing details
-    double pricePerMeal = 80.0;
-    // Query active menu price
-    final menus = await _db.collectionGetWhere('menu', 'isActive', true);
-    if (menus.isNotEmpty) {
-      pricePerMeal = (menus.first['price'] as num).toDouble();
+    double finalPricePerMeal = pricePerMeal ?? 80.0;
+    if (pricePerMeal == null) {
+      final menus = await _db.collectionGetWhere('menu', 'isActive', true);
+      final slotMenus = menus.where((m) => m['slot'] == deliverySlot).toList();
+      if (slotMenus.isNotEmpty) {
+        finalPricePerMeal = (slotMenus.first['price'] as num).toDouble();
+      } else if (menus.isNotEmpty) {
+        finalPricePerMeal = (menus.first['price'] as num).toDouble();
+      }
     }
+    final pricePerMealValue = finalPricePerMeal;
 
     int mealsCount = 1;
     int weeksMultiplier = 1;
@@ -138,7 +144,7 @@ class BookingRepository {
     }
 
     final double slotMultiplier = (deliverySlot == 'both') ? 2.0 : 1.0;
-    final subtotal = pricePerMeal * mealsCount * slotMultiplier * weeksMultiplier * quantity;
+    final subtotal = pricePerMealValue * mealsCount * slotMultiplier * weeksMultiplier * quantity;
     double discount = 0;
 
     if (couponCode != null && couponCode.isNotEmpty) {
@@ -161,7 +167,7 @@ class BookingRepository {
       'area': area,
       'landmark': landmark,
       'deliveryInstructions': deliveryInstructions ?? '',
-      'pricePerMeal': pricePerMeal,
+      'pricePerMeal': pricePerMealValue,
       'mealsCount': mealsCount,
       'totalAmount': subtotal,
       'discountAmount': discount,

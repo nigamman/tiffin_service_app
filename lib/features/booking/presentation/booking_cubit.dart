@@ -191,7 +191,7 @@ class BookingCubit extends Cubit<BookingState> {
     ));
   }
 
-  Future<void> checkout() async {
+  Future<void> checkout({double? pricePerMeal}) async {
     emit(state.copyWith(isLoading: true, error: () => null));
     try {
       final res = await _repository.createOrder(
@@ -205,6 +205,7 @@ class BookingCubit extends Cubit<BookingState> {
         contactPhone: state.contactPhone,
         deliveryInstructions: state.deliveryInstructions,
         couponCode: state.appliedCoupon?.code,
+        pricePerMeal: pricePerMeal,
       );
       
       emit(state.copyWith(

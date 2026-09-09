@@ -367,7 +367,7 @@ class _OrderSummaryStepState extends State<OrderSummaryStep> {
                   text: "Proceed to Payment",
                   icon: Icons.payment,
                   isLoading: state.isLoading,
-                  onPressed: () => context.read<BookingCubit>().checkout(),
+                  onPressed: () => context.read<BookingCubit>().checkout(pricePerMeal: widget.menu.price),
                 ),
                 const SizedBox(height: 12),
                 GestureDetector(
