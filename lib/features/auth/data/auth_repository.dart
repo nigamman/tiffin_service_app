@@ -216,34 +216,42 @@ class AuthRepository {
     await prefs.remove('auth_token');
     await prefs.remove('user_profile');
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: '57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com',
-      );
+      final GoogleSignIn googleSignIn = GoogleSignIn();
       await googleSignIn.signOut();
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
   }
 
   Future<UserProfile> signInWithGoogle() async {
-    // 1. Trigger the Google Authentication flow with explicit Web Client ID for idToken
     final GoogleSignIn googleSignIn = GoogleSignIn(
+      scopes: ['email', 'profile'],
       serverClientId: '57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com',
     );
+
+    try {
+      await googleSignIn.signOut();
+    } catch (_) {}
+
     final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
     if (googleUser == null) {
-      throw Exception('Google Sign-In was cancelled');
+      throw Exception('Google Sign-In was cancelled by user');
     }
 
-    // 2. Obtain the auth details from the request
     final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-    // 3. Create a new credential
+    final String? idToken = googleAuth.idToken;
+    final String? accessToken = googleAuth.accessToken;
+
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Could not obtain Google ID token. Please try again.');
+    }
+
     final OAuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
+      accessToken: accessToken,
+      idToken: idToken,
     );
 
-    // 4. Sign in to Firebase with the credential
     final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
     final User? firebaseUser = userCredential.user;
 
@@ -251,12 +259,11 @@ class AuthRepository {
       throw Exception('Firebase Sign-In failed');
     }
 
-    // 5. Look up or create user profile in Firestore
-    final existingUsers = await _db.collectionGetWhere('users', 'id', firebaseUser.uid);
+    final docData = await _db.docGet('users', firebaseUser.uid);
     UserProfile profile;
 
-    if (existingUsers.isNotEmpty) {
-      profile = UserProfile.fromMap(existingUsers.first);
+    if (docData != null && docData.isNotEmpty) {
+      profile = UserProfile.fromMap(docData);
       final isSystemAdmin = profile.phone == '9119724875' || profile.phone == '9999999999' || profile.name.toLowerCase() == 'admin';
       if (isSystemAdmin && !profile.isAdmin) {
         await _db.docUpdate('users', profile.id, {'isAdmin': true});
@@ -284,12 +291,10 @@ class AuthRepository {
         'isAdmin': isAdmin,
       };
       
-      // Set doc with Firebase User ID
       final createdDoc = await _db.docSet('users', firebaseUser.uid, newUserMap);
       profile = UserProfile.fromMap(createdDoc);
     }
 
-    // Cache local profile
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', 'firebase_auth_token_${profile.id}');
     await prefs.setString('user_profile', jsonEncode(profile.toMap()));

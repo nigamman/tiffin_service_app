@@ -208,13 +208,17 @@ class AuthCubit extends Cubit<AuthState> {
       final user = await _repository.signInWithGoogle();
       emit(AuthAuthenticated(user));
     } catch (e) {
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-      final user = await _repository.getCachedUser();
-      if (user != null) {
-        emit(AuthAuthenticated(user));
-      } else {
-        emit(AuthInitial());
+      final message = e.toString().replaceAll('Exception: ', '');
+      if (message == 'Google Sign-In was cancelled by user') {
+        final cached = await _repository.getCachedUser();
+        if (cached != null) {
+          emit(AuthAuthenticated(cached));
+        } else {
+          emit(AuthInitial());
+        }
+        return;
       }
+      emit(AuthError(message));
     }
   }
 

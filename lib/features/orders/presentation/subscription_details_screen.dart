@@ -239,7 +239,6 @@ class _SubscriptionDetailsViewState extends State<_SubscriptionDetailsView> {
 
   Widget _buildContent(BuildContext context, OrderModel order) {
     final now = DateTime.now();
-    final todayNormalized = DateTime(now.year, now.month, now.day);
 
     final totalMeals = order.totalMeals;
     final remainingMeals = order.remainingMeals;

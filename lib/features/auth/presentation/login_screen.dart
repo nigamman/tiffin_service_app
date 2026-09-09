@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'auth_cubit.dart';
 import 'otp_screen.dart';
+import '../../home/presentation/main_layout.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
 
@@ -52,7 +53,14 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         } else if (state is AuthAuthenticated) {
-          Navigator.maybePop(context);
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MainLayout()),
+            );
+          }
         } else if (state is AuthError) {
           if (state.isSmsUnavailable) {
             _showQuotaExceededDialog(context);
