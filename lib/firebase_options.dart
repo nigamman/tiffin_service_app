@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -50,19 +41,50 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDEmicQIfps62Rqpr1McMCVuOMDT7Njav4',
-    appId: '1:57069695734:android:db794cc94df47b553ff2d7',
-    messagingSenderId: '57069695734',
-    projectId: 'tiffin-service-cd4fb',
-    storageBucket: 'tiffin-service-cd4fb.firebasestorage.app',
+    apiKey: 'AIzaSyDLwLr91ySdUQyGzA6LExQ5ryvzh31lMIw',
+    appId: '1:797468589410:android:79e0481e97b1dc431d003b',
+    messagingSenderId: '797468589410',
+    projectId: 'atithibhoj-app',
+    storageBucket: 'atithibhoj-app.firebasestorage.app',
+  );
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBgtuVu3w8XoyXlWWoejwbGD_n4VmtRfmc',
+    appId: '1:797468589410:ios:651ff0ee61bf6c4a1d003b',
+    messagingSenderId: '797468589410',
+    projectId: 'atithibhoj-app',
+    storageBucket: 'atithibhoj-app.firebasestorage.app',
+    androidClientId: '797468589410-5pjmvheodakl07dsc2884bs9emrlfhro.apps.googleusercontent.com',
+    iosClientId: '797468589410-0mbhb18bgullkrh6qtf2tq66ijie6c5u.apps.googleusercontent.com',
+    iosBundleId: 'com.example.tiffinServiceApp',
+  );
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyCpIlkWbU0nNHH6uGWWnxuhRKzOM5ANnNk',
+    appId: '1:797468589410:web:cbbbaaf811b356081d003b',
+    messagingSenderId: '797468589410',
+    projectId: 'atithibhoj-app',
+    authDomain: 'atithibhoj-app.firebaseapp.com',
+    storageBucket: 'atithibhoj-app.firebasestorage.app',
+    measurementId: 'G-D5F17DB44C',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyATpBPSDeBh8yE9ZuwVEHzix1wYgo5gWGk',
-    appId: '1:57069695734:ios:bd06d487fa54fc1f3ff2d7',
-    messagingSenderId: '57069695734',
-    projectId: 'tiffin-service-cd4fb',
-    storageBucket: 'tiffin-service-cd4fb.firebasestorage.app',
-    iosBundleId: 'com.nigamman.atithibhoj',
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBgtuVu3w8XoyXlWWoejwbGD_n4VmtRfmc',
+    appId: '1:797468589410:ios:651ff0ee61bf6c4a1d003b',
+    messagingSenderId: '797468589410',
+    projectId: 'atithibhoj-app',
+    storageBucket: 'atithibhoj-app.firebasestorage.app',
+    androidClientId: '797468589410-5pjmvheodakl07dsc2884bs9emrlfhro.apps.googleusercontent.com',
+    iosClientId: '797468589410-0mbhb18bgullkrh6qtf2tq66ijie6c5u.apps.googleusercontent.com',
+    iosBundleId: 'com.example.tiffinServiceApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCpIlkWbU0nNHH6uGWWnxuhRKzOM5ANnNk',
+    appId: '1:797468589410:web:9b6d7642237009761d003b',
+    messagingSenderId: '797468589410',
+    projectId: 'atithibhoj-app',
+    authDomain: 'atithibhoj-app.firebaseapp.com',
+    storageBucket: 'atithibhoj-app.firebasestorage.app',
+    measurementId: 'G-JBBED9C6XZ',
   );
 }

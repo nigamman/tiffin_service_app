@@ -1,20 +1,20 @@
 {
   "project_info": {
-    "project_number": "57069695734",
-    "project_id": "tiffin-service-cd4fb",
-    "storage_bucket": "tiffin-service-cd4fb.firebasestorage.app"
+    "project_number": "797468589410",
+    "project_id": "atithibhoj-app",
+    "storage_bucket": "atithibhoj-app.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:57069695734:android:db794cc94df47b553ff2d7",
+        "mobilesdk_app_id": "1:797468589410:android:79e0481e97b1dc431d003b",
         "android_client_info": {
           "package_name": "com.nigamman.atithibhoj"
         }
       },
       "oauth_client": [
         {
-          "client_id": "57069695734-ba3dsh5obebchgrusqg3t9pt1ajdpc7r.apps.googleusercontent.com",
+          "client_id": "797468589410-5pjmvheodakl07dsc2884bs9emrlfhro.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.nigamman.atithibhoj",
@@ -22,7 +22,7 @@
           }
         },
         {
-          "client_id": "57069695734-n2d1r9e0j2lpn50i2aeqsd07qgh06ch8.apps.googleusercontent.com",
+          "client_id": "797468589410-q39c3f2fpejgu5plj9eb3ja1jop71eia.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.nigamman.atithibhoj",
@@ -30,7 +30,7 @@
           }
         },
         {
-          "client_id": "57069695734-r98962nk33b7h3ks4n3qii3li3qk7odn.apps.googleusercontent.com",
+          "client_id": "797468589410-ra820plf6gnoglbd3ul4cckpv7jpca61.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.nigamman.atithibhoj",
@@ -38,24 +38,24 @@
           }
         },
         {
-          "client_id": "57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com",
+          "client_id": "797468589410-lj54m5uishgphsrbfce9hn1srun1c7i9.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDEmicQIfps62Rqpr1McMCVuOMDT7Njav4"
+          "current_key": "AIzaSyDLwLr91ySdUQyGzA6LExQ5ryvzh31lMIw"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com",
+              "client_id": "797468589410-lj54m5uishgphsrbfce9hn1srun1c7i9.apps.googleusercontent.com",
               "client_type": 3
             },
             {
-              "client_id": "57069695734-gup76s4bvo1i5kd6m0v5df6qgrqmnin3.apps.googleusercontent.com",
+              "client_id": "797468589410-0mbhb18bgullkrh6qtf2tq66ijie6c5u.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
                 "bundle_id": "com.example.tiffinServiceApp"

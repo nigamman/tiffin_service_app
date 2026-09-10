@@ -225,7 +225,7 @@ class AuthRepository {
   Future<UserProfile> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn(
       scopes: ['email', 'profile'],
-      serverClientId: '57069695734-dstf26ll3mp94ep9ul840tlvl9ooiegm.apps.googleusercontent.com',
+      serverClientId: '797468589410-lj54m5uishgphsrbfce9hn1srun1c7i9.apps.googleusercontent.com',
     );
 
     try {
