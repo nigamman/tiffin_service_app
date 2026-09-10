@@ -1,0 +1,28 @@
+# This file contains the keystore information used to sign your app.
+# For production builds, you MUST create a copy named 'key.properties' (note: this file is gitignored)
+# and fill in the actual values.
+#
+# IMPORTANT: The certificate hash used to sign the release APK MUST match the one registered
+# in Firebase Console. If they don't match, Google Sign-In will fail in production.
+#
+# Steps to set up:
+# 1. Create your release keystore if you don't have one:
+#    keytool -genkey -v -keystore ~/tiffin_release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias tiffin_key
+#
+# 2. Get the SHA-1 fingerprint of your release key:
+#    keytool -list -v -keystore ~/tiffin_release.jks
+#    (Look for "SHA1:" line)
+#
+# 3. Copy this file to 'key.properties' and fill in the values below
+#
+# 4. Register the SHA-1 fingerprint in Firebase Console:
+#    - Go to Firebase Project Settings > Android App
+#    - Add your SHA-1 fingerprint
+#    - Download the updated google-services.json
+#
+# 5. Place your keystore file in the android folder and reference it below
+
+storeFile=../tiffin_release.jks
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=tiffin_key
+keyPassword=YOUR_KEY_PASSWORD
