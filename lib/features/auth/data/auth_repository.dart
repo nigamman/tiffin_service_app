@@ -223,12 +223,14 @@ class AuthRepository {
   }
 
   Future<UserProfile> signInWithGoogle() async {
+    // GoogleSignIn without explicit serverClientId - it will auto-detect from google-services.json
+    // This is recommended for Android production builds
     final GoogleSignIn googleSignIn = GoogleSignIn(
       scopes: ['email', 'profile'],
-      serverClientId: '797468589410-lj54m5uishgphsrbfce9hn1srun1c7i9.apps.googleusercontent.com',
     );
 
     try {
+      // Sign out first to ensure fresh login
       await googleSignIn.signOut();
     } catch (_) {}
 
